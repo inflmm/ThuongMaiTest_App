@@ -21,6 +21,6 @@ WORKDIR /app
 COPY --from=builder /app/target/*.jar app.jar
 
 # Nhận cổng động từ môi trường Render/Railway (mặc định 8080)
-EXPOSE 8443
+EXPOSE 8080
 
 ENTRYPOINT ["java", "-jar", "app.jar"]
