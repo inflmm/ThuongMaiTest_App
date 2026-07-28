@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đặt hàng thành công</title>
+    <link rel="stylesheet" th:href="@{/assets/css/style.css}">
+    <style>
+        .success-message {
+            text-align: center;
+            padding: 50px 0;
+            background: #f9f9f9;
+            border: 1px solid #e0e0e0;
+            margin-top: 50px;
+        }
+
+        .success-message h1 {
+            color: #28a745;
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css"
+        integrity="sha512-2SwdPD6INVrV/lHTZbO2nodKhrnDdJK9/kg2XD1r9uGqPo1cUbujc+IYdlYdEErWNu69gVcYgdxlmVmzTWnetw=="
+        crossorigin="anonymous" referrerpolicy="no-referrer" />
+</head>
+
+<body>
+    <div th:replace="~{fragments/layout :: topheader_fragment}"></div>
+    <div th:replace="~{fragments/layout :: header_fragment}"></div>
+    <div th:replace="~{fragments/layout :: subheader_fragment}"></div>
+    <div th:replace="~{fragments/layout :: sidebanner_fragment}"></div>
+
+    <main class="container">
+        <div class="success-message">
+            <h1>✅ Đặt hàng thành công!</h1>
+            <p>Mã đơn hàng của bạn là: <strong id="display-order-id">---</strong></p>
+            <p>Cảm ơn bạn đã mua sắm tại cửa hàng chúng tôi.</p>
+            <a href="/homepage" class="btn-back">Quay về Trang chủ</a>
+        </div>
+
+        <script>
+            // Lấy orderId từ URL (ví dụ: /success?orderId=15)
+            const urlParams = new URLSearchParams(window.location.search);
+            const orderId = urlParams.get('orderId');
+            if (orderId) {
+                document.getElementById('display-order-id').innerText = orderId;
+            }
+        </script>
+    </main>
+
+    <script th:src="@{/assets/js/common.js}"></script>
+    <div th:replace="~{fragments/layout :: footer_fragment}"></div>
+</body>
+
+</html>

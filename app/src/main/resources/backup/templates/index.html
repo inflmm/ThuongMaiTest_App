@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demo Kết nối API</title>
+    <style>
+        /* CSS cơ bản - Tùy chỉnh theo ý bạn */
+        body { font-family: sans-serif; margin: 20px; }
+        .product-list { 
+            display: flex; 
+            flex-wrap: wrap; 
+            gap: 20px; 
+            list-style: none; 
+            padding: 0;
+        }
+        .product-item {
+            border: 1px solid #ccc;
+            padding: 15px;
+            width: 250px;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+        }
+        .product-item h3 { color: #007bff; margin-top: 0; }
+        .product-item p { margin: 5px 0; }
+    </style>
+</head>
+<body>
+
+    <h2>Danh Sách Sản Phẩm Từ Spring Boot API</h2>
+    
+    <div id="product-container" class="product-list">
+        Đang tải dữ liệu...
+    </div>
+
+    <script>
+        // Hàm chính để gọi API và hiển thị dữ liệu
+        async function fetchProducts() {
+            const container = document.getElementById('product-container');
+            const api_url = 'http://localhost:8080/api/products'; // API Endpoint của Back-end
+
+            try {
+                // 1. Gọi API bằng fetch()
+                const response = await fetch(api_url);
+
+                // 2. Chuyển đổi phản hồi (response) thành đối tượng JavaScript (từ JSON)
+                const products = await response.json();
+
+                // 3. Xóa nội dung "Đang tải dữ liệu..."
+                container.innerHTML = ''; 
+
+                // 4. Lặp qua danh sách sản phẩm và tạo HTML
+                products.forEach(product => {
+                    // Sử dụng HTML/CSS bạn đã biết để tạo một thẻ div cho mỗi sản phẩm
+                    const productDiv = document.createElement('div');
+                    productDiv.className = 'product-item';
+                    
+                    productDiv.innerHTML = `
+                        <h3>${product.name}</h3>
+                        <p><strong>ID:</strong> ${product.id}</p>
+                        <p><strong>Giá:</strong> ${product.price.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })}</p>
+                    `;
+                    
+                    // Chèn sản phẩm vào container
+                    container.appendChild(productDiv);
+                });
+
+            } catch (error) {
+                // Xử lý lỗi nếu việc gọi API thất bại (ví dụ: Back-end chưa chạy)
+                console.error('Lỗi khi tải dữ liệu:', error);
+                container.innerHTML = 'Lỗi: Không thể kết nối với Back-end API.';
+            }
+        }
+
+        // Chạy hàm khi trang web được tải
+        fetchProducts();
+    </script>
+
+</body>
+</html>

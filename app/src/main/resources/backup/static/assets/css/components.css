@@ -1,0 +1,204 @@
+/* TABLE OF CONTENTS:
+  1. 
+  2. 
+  3. 
+*/
+
+
+
+.horizontal {
+	display: flex;
+	flex-wrap: wrap;
+}
+
+body {
+	font-family: "Inter", sans-serif;
+	-webkit-font-smoothing: antialiased; /* Giúp font hiển thị mịn hơn trên Mac/iOS */
+    -moz-osx-font-smoothing: grayscale;
+	color: var(--color-text);
+	font-size: 14px;
+	font-weight: 400;
+	margin: 0px;
+}
+
+.container-fluid {
+	max-width: 1220px;
+	margin-left: auto;
+	margin-right: auto;
+	padding: 0 10px;
+}
+
+
+.nav-btn {
+	position: absolute;
+	top: 50%;
+	transform: translateY(-50%);
+	width: 40px;
+	height: 40px;
+	border-radius: 50%;
+	background: rgba(176, 176, 176, 0.75);
+	border: 1px solid #ddd;
+	z-index: 100;
+	cursor: pointer;
+	box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.prev {
+	left: -10px;
+}
+
+.next {
+	right: -10px;
+}
+
+.nav-btn:hover {
+	color: #ed1c24;
+}
+
+.product-price {
+	margin-top: auto; /* Tự động đẩy phần giá và nút xuống đáy thẻ */
+	color: red;
+}
+
+/* Container chứa mục Tài khoản để định vị dropdown */
+.action-item {
+    position: relative; /* Quan trọng để dropdown bay đúng chỗ */
+}
+
+/* Modal nội dung */
+#auth-modal {
+    display: none; /* Ẩn mặc định */
+    position: absolute;
+    top: 100%; /* Ngay dưới thanh header */
+    right: 0;
+    width: 300px;
+    background-color: white;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    border-radius: 8px;
+    padding: 20px;
+    z-index: 1000;
+    color: #333;
+    margin-top: 10px;
+}
+
+/* Hiển thị khi có class active */
+#auth-modal.active {
+    display: block;
+}
+
+/* Mũi tên nhọn phía trên dropdown */
+#auth-modal::before {
+    content: "";
+    position: absolute;
+    top: -10px;
+    right: 20px;
+    border-left: 10px solid transparent;
+    border-right: 10px solid transparent;
+    border-bottom: 10px solid white;
+}
+
+.auth-toggle {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.auth-toggle button {
+    flex: 1;
+    padding: 8px;
+    border: 1px solid #ddd;
+    background: #f8f8f8;
+    cursor: pointer;
+    border-radius: 4px;
+    font-size: 13px;
+}
+
+.auth-toggle button.active {
+    border-color: #e11b1e;
+    color: #e11b1e;
+    background: #fff5f5;
+}
+
+#auth-modal input {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
+#btn-submit-auth {
+    width: 100%;
+    padding: 12px;
+    background-color: #e11b1e;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+#btn-submit-auth:hover {
+    background-color: #c11518;
+}
+
+.modal-content p {
+    font-size: 13px;
+    text-align: center;
+    margin-top: 15px;
+    color: #007bff;
+    cursor: pointer;
+}
+
+.user-dropdown.active {
+    display: block !important;
+}
+.user-dropdown a {
+    text-decoration: none;
+    font-size: 14px;
+}
+.user-dropdown a:hover {
+    background-color: #f5f5f5;
+}
+
+.breadcrumb {
+    display: flex;
+    list-style: none;
+    margin: 0;
+    padding: 14px 0;
+    font-size: 13px;
+    white-space: nowrap;
+    overflow-x: scroll;
+    background-color: transparent;
+}
+.breadcrumb-item + .breadcrumb-item::before {
+    content: ">";
+    padding: 0 4px;
+    color: #ccc;
+}
+.breadcrumb-item a {
+    color: #007bff;
+    text-decoration: none;
+}
+
+.main-container {
+	margin: 0px 10%;
+}
+
+/* --- [1. PC MODE 2] --- */
+@media (max-width: 1170px) {
+	.main-container{
+		margin: 0 1%;
+	}
+    .breadcrumb{
+        
+        padding: 6px 0;
+    }
+}
+/* --- [2. TABLET MODE ] --- */
+@media (max-width: 992px) {
+}

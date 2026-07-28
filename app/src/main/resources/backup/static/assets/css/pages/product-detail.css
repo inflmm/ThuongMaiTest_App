@@ -1,0 +1,534 @@
+/* TABLE OF CONTENTS:
+  1. Cart
+  2. Responsive
+  3. 
+*/
+/* --- [Cart] --- */
+.label-qty-control {
+	margin-right: 5px;
+}
+
+.btn-qty-control {
+	width: 32px;
+	height: 32px;
+	display: flex;
+    align-items: center;
+    justify-content: center;
+	padding: 0.3125rem 0px;
+}
+
+.cart-item-quantity-input {
+	height: 32px;
+	width: 50px;
+    margin: 0; /* Bỏ margin để 3 cái khít nhau */
+	text-align: center;
+}
+
+.product-detail-container {
+	display: flex;
+	gap: 30px;
+	margin: 0 auto;
+	padding: 1.25rem;
+	border: 1px solid #eee;
+	box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);
+	background-color: #fff;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+/* Điều chỉnh lại khung chứa ảnh chính */
+.product-detail-image {
+    flex: 1;
+    max-width: 50%; /* Tăng nhẹ để slider thoải mái hơn */
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.product-detail-image img {
+	width: 100%;
+	height: auto;
+	border-radius: 8px;
+}
+
+.product-detail-info {
+	flex: 1;
+	padding-left: 1.25rem;
+}
+
+.product-detail-info h2 {
+	color: #333;
+	margin-top: 0rem;
+	font-size: 2rem;
+}
+
+.product-detail-info .price {
+	font-size: 1.8rem;
+	color: #e44d26;
+	font-weight: bold;
+	margin: 0.9375rem 0;
+}
+
+.product-detail-info .description {
+	line-height: 1.6;
+	color: #555;
+	margin-bottom: 1.25rem;
+}
+
+.quantity-control{
+	display: flex;
+	flex-wrap: nowrap;
+	align-items: center;
+}
+
+.quantity-selector {
+	display: flex;
+	align-items: stretch;
+	margin-bottom: 1.25rem;
+	height: 32px;
+}
+
+.quantity-selector button {
+	background-color: #f0f0f0;
+	border: 1px solid #ccc;
+	padding: 0.3125rem 0.625rem;
+	cursor: pointer;
+	font-size: 1.2rem;
+	width: 40px;
+	height: 40px;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+}
+
+.quantity-selector input {
+	width: 50px;
+	text-align: center;
+	border: 1px solid #ccc;
+	padding: 0.3125rem;
+	margin: 0 0.3125rem;
+	font-size: 1.2rem;
+	height: 40px;
+}
+
+.btn-add-to-cart {
+	background-color: #007bff;
+	color: white;
+	padding: 0.75rem 1.5625rem;
+	border: none;
+	cursor: pointer;
+	font-size: 1.1rem;
+	border-radius: 5px;
+	transition: background-color 0.3s ease;
+}
+
+.btn-add-to-cart:hover {
+	background-color: #0056b3;
+}
+
+.loading-message {
+	text-align: center;
+	padding: 3.125rem;
+	font-size: 1.2rem;
+	color: #666;
+}
+
+.error-message {
+	text-align: center;
+	padding: 3.125rem;
+	font-size: 1.2rem;
+	color: #d9534f;
+}
+.quantity-selector {
+        justify-content: center;
+    }
+    .product-button{
+        display: flex;
+        justify-content: center;
+        margin-bottom: 1rem;
+    }
+	
+/* --- Master Slider (Tối giản) --- */
+.master-slider {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scroll-behavior: smooth;
+    scrollbar-width: none;
+    border-radius: 8px;
+	width: 60%;
+	margin: auto;
+}
+.master-slider::-webkit-scrollbar { display: none; }
+.master-item {
+    min-width: 100%;
+    scroll-snap-align: start;
+    object-fit: contain;
+    opacity: 1; /* Đảm bảo luôn rõ nét */
+    cursor: zoom-in;
+    position: relative;
+    z-index: 5;
+}
+
+/* Container chung (áp dụng cho cả Master và Thumbnail wrapper) */
+.master-container, .thumbnail-wrapper {
+    position: relative;
+}
+
+/* Ẩn nút mặc định và đặt trạng thái ban đầu là một chấm nhỏ (scale 0) */
+.master-nav-btn, .thumb-nav-btn {
+    opacity: 0;
+    transform: scale(0);
+    transition: all 0.3s ease-in-out; /* Hiệu ứng bung ra hơi nảy */
+    pointer-events: none; /* Tránh click nhầm khi đang ẩn */
+}
+
+/* Khi rê chuột vào CONTAINER thì hiện nút */
+.master-container:hover .master-nav-btn,
+.thumbnail-wrapper:hover .thumb-nav-btn {
+    opacity: 1;
+    transform: scale(1);
+    pointer-events: auto;
+}
+
+/* Nút điều hướng Master */
+.master-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.master-nav-btn {
+    position: absolute;
+    z-index: 100;
+    background: rgba(255, 255, 255, 0.8);
+    border: none;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    pointer-events: auto; /* Chắc chắn nhận click */
+}
+.master-nav-btn:hover{
+    background: #fff; 
+    color: #e44d26;
+}
+.master-nav-btn.prev { left: 10px; }
+.master-nav-btn.next { right: 10px; }
+
+/* --- Thumbnail Wrapper --- */
+.thumbnail-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    margin-top: 15px;
+    padding: 0 10px; /* Tạo khoảng trống cho nút */
+}
+
+.thumbnail-slider {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    user-select: none; /* CHỐNG BÔI ĐEN KHI KÉO */
+    -webkit-user-select: none;
+	padding-top: 2px;
+}
+.thumbnail-slider img { pointer-events: none; }
+.thumbnail-slider::-webkit-scrollbar { display: none; }
+
+.thumb-item {
+    min-width: 50px;
+    height: 50px;
+    flex-shrink: 0;
+    transition: 0.2s;
+	border: 3px solid #fff;
+	border-radius: 10px;
+}
+.thumb-item.active { border-color: #e44d26; }
+.thumb-item img { 
+    width: 100%; height: 100%; 
+    object-fit: cover; 
+    pointer-events: none; /* Quan trọng: Để không bị dính kéo ảnh của trình duyệt */
+}
+
+/* Nút bấm điều hướng */
+.thumb-nav-btn {
+    position: absolute;
+    width: 32px;
+    height: 32px;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 50%;
+    cursor: pointer;
+    z-index: 100;
+}
+.thumb-nav-btn.prev { left: 0; }
+.thumb-nav-btn.next { right: 0; }
+.thumb-nav-btn:hover { background: #fff; color: #e44d26; }
+
+/* 1. Lớp nền mờ toàn màn hình */
+.image-overlay {
+    display: none; /* Mặc định ẩn, JS sẽ đổi thành flex */
+    position: fixed;
+    z-index: 9999; /* Đảm bảo nằm trên mọi thành phần khác */
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7); /* Nền tối mờ */
+    backdrop-filter: blur(4px); /* Làm mờ nhẹ nội dung phía dưới */
+    align-items: center;
+    justify-content: center;
+    user-select: none;
+    pointer-events: none; /* Mặc định không cản trở click vào trang web */
+    opacity: 0;
+    transition: opacity 0.4s ease, visibility 0.4s ease !important;
+}
+
+
+.image-overlay[style*="display: flex"] {
+    opacity: 1;
+    pointer-events: auto; /* Chỉ khi hiện lên mới nhận click */
+}
+
+/* Số thứ tự ảnh */
+.overlay-counter {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    color: white;
+    font-size: 18px;
+    font-weight: 500;
+    background: rgba(0, 0, 0, 0.5);
+    padding: 5px 15px;
+    border-radius: 20px;
+    z-index: 1000;
+}
+
+.overlay-toolbox{
+	position: absolute;
+	display: flex;
+	position: fixed;
+	right: 0;
+	top: 0;
+	background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+}
+
+/* 3. Nút đóng (X) */
+.close-overlay {
+    position: relative;
+    font-size: 32px;
+    font-weight: bold;
+    color: #fff;
+    cursor: pointer;
+    line-height: 1;
+    z-index: 1000;
+    transition: color 0.2s;
+	padding: 5px;
+	width: 44px;
+	height: 44px;
+	text-align: center;
+}
+.close-overlay:hover {
+    color: #e44d26;
+}
+
+.overlay-image-container {
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: zoom-in;
+    overflow: visible; /* Cho phép ảnh lộ ra ngoài khi kéo quá đà */
+    perspective: 1000px;
+    touch-action: none; /* Quan trọng để tự xử lý vuốt trên Mobile */
+    user-select: none;
+}
+
+
+#overlay-img {
+    position: relative;
+    width: auto;
+    height: auto;
+    max-width: 90vw;
+    max-height: 90vh;
+    object-fit: contain;
+    display: block;
+    margin: 0 !important;
+    opacity: 1 !important; /* Luôn hiện rõ */
+
+    image-rendering: -webkit-optimize-contrast;
+    transform: translate(var(--zoom-x, 0px), var(--zoom-y, 0px)) scale(var(--zoom-scale, 1));
+    transition: transform 0.3s cubic-bezier(0.2, 0, 0.2, 1);
+    
+    will-change: transform;
+    user-select: none;
+    -webkit-user-drag: none;
+    transform-origin: center center; 
+    backface-visibility: hidden;
+}
+
+/* Khi đóng */
+.overlay-fade-out {
+    opacity: 0 !important;
+    transition: opacity 0.4s ease !important;
+}
+
+/* Khi đang mở hoặc đang chuyển ảnh, ta có thể tạm ẩn UI nếu muốn */
+.overlay-counter, .overlay-btn, .close-overlay, .overlay-toolbox {
+    opacity: 0;
+    transform: none !important; /* Bỏ mọi hiệu ứng di chuyển của UI */
+    transition: opacity 0.4s ease 0.1s; /* Hiện chậm hơn nền một chút */
+}
+
+/* Khi Overlay hiển thị */
+.image-overlay[style*="display: flex"] {
+    opacity: 1;
+    visibility: visible;
+}
+/* Khi đã mở xong hoặc đang trong quá trình mở, UI hiện lên */
+.image-overlay[style*="display: flex"] .overlay-counter,
+.image-overlay[style*="display: flex"] .overlay-btn,
+.image-overlay[style*="display: flex"] .close-overlay,
+.image-overlay[style*="display: flex"] .overlay-toolbox {
+    opacity: 1;
+}
+
+/* Lớp này dùng để kích hoạt hiệu ứng mở */
+.overlay-opening #overlay-img {
+    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+/* Hiệu ứng mờ dần khi nhấn nút chuyển ảnh */
+.fade-transition {
+    opacity: 0;
+    transform: translate(var(--zoom-x, 0px), var(--zoom-y, 0px)) scale(0.9) !important;
+}
+
+/* Khi đang kéo hoặc vuốt, tắt transition để không bị delay */
+#overlay-img.is-dragging {
+    transition: none !important;
+}
+
+/*zoom*/
+#overlay-img.is-zoomed {
+    cursor: grab;
+}
+
+.overlay-img.is-zoomed:active {
+    cursor: grabbing;
+}
+
+/* Trạng thái ảnh đang chuẩn bị bay vào từ bên phải hoặc trái */
+.img-entering-right {
+    transform: translate(100vw, 0) scale(0.9) !important;
+    opacity: 0;
+}
+.img-entering-left {
+    transform: translate(-100vw, 0) scale(0.9) !important;
+    opacity: 0;
+}
+
+/* 5. Nút điều hướng trong Overlay (Trái/Phải) */
+.overlay-btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(255, 255, 255, 0.5);
+    border: 1px solid #eee;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    font-size: 18px;
+    color: #333;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    z-index: 1000;
+    transition: all 0.2s;
+}
+
+.overlay-btn:hover {
+    background-color: #f8f8f8;
+    color: #e44d26;
+}
+.overlay-btn.prev { left: 12px; }
+.overlay-btn.next { right: 12px; }
+
+/* Khử màu xanh khi nhấn trên di động và highlight text */
+/* Áp dụng cho toàn bộ các nút trong overlay */
+.master-nav-btn,
+.thumb-nav-btn,
+.overlay-btn, 
+.close-overlay, 
+#overlay-img, 
+.overlay-image-container,
+.master-item {
+    -webkit-tap-highlight-color: rgba(0,0,0,0) !important;
+    -webkit-tap-highlight-color: transparent !important;
+    -webkit-touch-callout: none; /* Khử menu chuột phải trên iOS */
+    outline: none !important;
+}
+
+/* Click vào ảnh master thì hiện con trỏ kính lúp */
+.master-item { cursor: zoom-in; }
+
+/* --- [Responsive] --- */
+/* --- [1. TABLET MODE] --- */
+@media (max-width: 1170px) {
+	
+    
+}
+/* --- [2. TABLET MODE ] --- */
+@media (max-width: 992px) {
+	.cart-item-image {
+		width: 100px;
+		/* Cố định ảnh nhỏ lại */
+		height: 100px;
+	}
+
+	.cart-item-quantity-input {
+		/* Trên di động phải to để dễ chạm */
+		width: 60px;
+		height: 44px;
+		font-size: 1rem;
+		min-width: 30px;
+	}
+
+	.quantity-selector {
+        height: 44px; /* Đạt chuẩn vàng 44px cho di động */
+        margin-top: 10px;
+    }
+
+	.btn-qty-control {
+		height: 44px;
+        width: 44px; /* Nút hình vuông 44x44 cực kỳ dễ bấm */
+        font-size: 1.2rem;
+    }
+
+    .product-detail-container{
+        flex-direction: column;
+        padding: 0.25rem;
+        margin: 0 auto;
+    }
+    .product-detail-info{
+        padding: 0 1.5rem;
+    }
+    .product-detail-image{
+        margin: 0 auto;
+		max-width: 95%;
+    }
+
+    .product-detail-info h2{
+        font-size: 14px;
+    }
+    .product-detail-info.price{
+        font-size: 16px;
+    }
+
+    
+}

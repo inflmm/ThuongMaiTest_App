@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Hệ thống Quản trị</title>
+    <link rel="icon" type="image/svg+xml" th:href="@{/assets/image/eslint-16-svgrepo-com.svg}">
+    <link rel="stylesheet" th:href="@{/assets/css/admin/admin-style.css}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css" rel="stylesheet" />
+</head>
+
+<body>
+    <div class="admin-container">
+        <aside class="sidebar">
+            <div>
+                <div class="sidebar-brand">ADMIN PANEL</div>
+                <nav class="sidebar-nav">
+                    <a href="/admin/main/categories" class="nav-link" data-module="categories" title="Danh mục">
+                        <i class="fa-solid fa-folder"></i> Danh mục
+                    </a>
+                    <a href="/admin/main/products" class="nav-link" data-module="products" title="Sản phẩm">
+                        <i class="fa-solid fa-box"></i> Sản phẩm
+                    </a>
+                    <a href="/admin/main/blogs" class="nav-link" data-module="blogs" title="Blog">
+                        <i class="fa-solid fa-newspaper"></i> Blog
+                    </a>
+                </nav>
+            </div>
+            <div class="logout-sidebar">
+                <nav class="sidebar-nav">
+                    <a href="javascript:void(0)" onclick="handleLogout()" class="nav-link logout" title="Đăng xuất">
+                        <i class="fa-solid fa-right-from-bracket"></i> Đăng xuất
+                    </a>
+                </nav>
+            </div>
+        </aside>
+
+        <main class="main-wrapper">
+            <header class="main-header">
+                <div class="main-header-left">
+                    <button class="sidebar-toggle-btn" onclick="AdminApp.toggleSidebar()" title="Thu nhỏ sidebar">
+                        <i class="fa-solid fa-bars"></i>
+                    </button>
+                    <h2 id="current-module-title">Bảng điều khiển</h2>
+                </div>
+                <div class="main-header-right" id="header-toolbox">
+                    
+                </div>
+            </header>
+
+            <div id="admin-app-root" class="content-area">
+            </div>
+
+            <div id="loading-overlay" class="loading-overlay" style="display: none;">
+                <div class="spinner"></div>
+            </div>
+        </main>
+    </div>
+
+    <script th:src="@{/assets/js/admin/admin-core.js}"></script>
+    <script th:src="@{/assets/js/admin/pages/admin-blog.js}"></script>
+    <!-- Include the Quill library -->
+    <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
+
+</body>
+
+</html>

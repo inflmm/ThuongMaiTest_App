@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <title th:text="${product.name} + ' | GearVN Test'"></title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" th:href="@{/assets/css/style.css}">
+    <link rel="stylesheet" th:href="@{/assets/css/pages/product-detail.css}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css"
+        integrity="sha512-2SwdPD6INVrV/lHTZbO2nodKhrnDdJK9/kg2XD1r9uGqPo1cUbujc+IYdlYdEErWNu69gVcYgdxlmVmzTWnetw=="
+        crossorigin="anonymous" referrerpolicy="no-referrer" />
+</head>
+
+<body>
+
+    <div th:replace="~{fragments/layout :: topheader_fragment}"></div>
+    <div th:replace="~{fragments/layout :: header_fragment}"></div>
+    <div th:replace="~{fragments/layout :: subheader_fragment}"></div>
+    <div th:replace="~{fragments/layout :: sidebanner_fragment}"></div>
+
+    <div class="main-container">
+        <div class="container-fluid">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item">
+                        <a th:href="@{/homepage}">
+                            <i class="fa-solid fa-house"></i>
+                            Trang chủ
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item">
+                        <a th:href="@{/collections}">Danh mục</a>
+                    </li>
+                    <li class="breadcrumb-item active" th:text="${product.name}">Tên sản phẩm</li>
+                </ol>
+            </nav>
+        </div>
+
+        <div class="container-fluid">
+            <div id="product-detail-wrapper">
+                <div id="loading-message" class="loading-message">Đang tải chi tiết sản phẩm...</div>
+                <div id="error-message" class="error-message" style="display: none;"></div>
+                <div id="product-detail-content" class="product-detail-container">
+                    <div class="product-detail-image">
+
+                        <div class="master-container">
+                            <button class="master-nav-btn prev" onclick="scrollMasterBtn(-1)">
+                                <i class="fa-solid fa-chevron-left"></i>
+                            </button>
+
+                            <div id="master-image-container" class="master-slider">
+                            </div>
+
+                            <button class="master-nav-btn next" onclick="scrollMasterBtn(1)">
+                                <i class="fa-solid fa-chevron-right"></i>
+                            </button>
+                        </div>
+
+                        <div class="thumbnail-wrapper">
+                            <button class="thumb-nav-btn prev" onclick="scrollThumb(-1)">
+                                <i class="fa-solid fa-chevron-left"></i>
+                            </button>
+
+                            <div id="thumbnail-list" class="thumbnail-slider">
+                            </div>
+
+                            <button class="thumb-nav-btn next" onclick="scrollThumb(1)">
+                                <i class="fa-solid fa-chevron-right"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="product-detail-info">
+                        <h2 id="detail-name"></h2>
+                        <p class="price" id="detail-price"></p>
+                        <p class="description" id="detail-description"></p>
+
+                        <div class="quantity-selector">
+                            <button id="btn-decrease-qty">-</button>
+                            <input type="number" id="detail-quantity" value="1" min="1" readonly>
+                            <button id="btn-increase-qty">+</button>
+                        </div>
+
+                        <div class="product-button">
+                            <button id="add-to-cart-btn" class="btn-add-to-cart">Thêm vào Giỏ hàng</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="image-overlay" class="image-overlay">
+        <div id="overlay-counter" class="overlay-counter">1 / 1</div>
+
+        <div class="overlay-toolbox">
+            <span id="close-overlay" class="close-overlay">&times;</span>
+        </div>
+
+        <button id="overlay-btn-prev" class="overlay-btn prev">&#10094;</button>
+
+        <div id="" class="overlay-image-container">
+            <img id="overlay-img" src="">
+        </div>
+
+        <button id="overlay-btn-next" class="overlay-btn next">&#10095;</button>
+    </div>
+
+    <script th:inline="javascript">
+        // Nhúng toàn bộ đối tượng product từ Server vào một biến toàn cục
+        // Thymeleaf sẽ tự động chuyển đối tượng Java thành JSON object trong JS
+        window.INITIAL_PRODUCT_DATA = [[${product}]];
+        const CURRENT_PRODUCT_ID = [[${ product.id }]];
+        const CURRENT_PRODUCT_SLUG = [[${ product.slug }]];
+    </script>
+
+    <script th:src="@{/assets/js/common.js}"></script>
+    <script th:src="@{/assets/js/pages/product-detail.js}"></script>
+
+    <div th:replace="~{fragments/layout :: footer_fragment}"></div>
+</body>
+
+</html>

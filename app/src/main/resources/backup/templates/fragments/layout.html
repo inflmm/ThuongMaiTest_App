@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+
+<head>
+	<meta charset="UTF-8">
+	<link rel="stylesheet" th:href="@{/css/style.css}">
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+
+	<div th:fragment="topheader_fragment" class="top-header">
+		<div class="container-fluid">
+			<a class="top-header" th:href="@{/homepage}" aria-label="PC GVN Tháng 11">
+				<img class="top-header" th:src="@{/assets/image/gearvn-pc-gvn-t11-topbar.png}" alt="PC GVN Tháng 11">
+			</a>
+		</div>
+	</div>
+
+	<header th:fragment="header_fragment" style="background-color: #e11b1e; color: white">
+
+		<div class="main-header">
+			<div class="container-fluid">
+				<div class="main-header-row">
+					<div class="main-header-left">
+						<div class="header-logo">
+							<a class="header-logo__link" th:href="@{/homepage}"> <img class="header-logo"
+									th:src="@{/assets/image/GearVNLogo.svg}" alt="GearVN Logo">
+							</a>
+						</div>
+						<div class="category-btn grey-bg">
+							<span class="box-icon">
+								<i class="fa fa-bars"></i> </span>
+							<span class="box-text">
+								Danh mục
+							</span>
+						</div>
+					</div>
+
+					<div class="main-header-right">
+						<div class="search-box">
+							<input type="text" placeholder="Bạn cần tìm gì?">
+							<button>
+								<i class="fa fa-search"></i>
+							</button>
+						</div>
+
+						<div class="header-actions horizontal">
+							<div class="action-item">
+								<span class="box-icon">
+									<i class="fa-solid fa-headset"></i>
+								</span>
+
+								<span class="box-text">
+									<span class="text-top">
+										Hotline
+									</span>
+
+									<span class="text-bottom">
+										1900.5301
+									</span>
+								</span>
+
+							</div>
+							<div class="action-item">
+								<span class="box-icon">
+									<i class="fa-solid fa-location-dot"></i>
+								</span>
+
+								<span class="box-text">
+									<span class="text-top">
+										Hệ thống
+									</span>
+
+									<span class="text-bottom">
+										Showroom
+									</span>
+								</span>
+							</div>
+							<div class="action-item">
+								<a class="header-don-hang" th:href="@{/homepage}">
+									<span class="box-icon">
+										<i class="fa-regular fa-clipboard"></i>
+									</span>
+
+									<span class="box-text">
+										<span class="text-top">
+											Tra cứu
+										</span>
+
+										<span class="text-bottom">
+											đơn hàng
+										</span>
+									</span>
+
+								</a>
+							</div>
+							<div class="action-item action-cart">
+								<a class="header-cart__link" th:href="@{/cart}">
+									<span class="box-icon">
+										<i class="fa fa-shopping-cart"></i>
+										<span id="cart-count" class="cart-count">0</span>
+									</span>
+
+									<span class="box-text">
+										<span class="text-top">
+											Giỏ
+										</span>
+
+										<span class="text-bottom">
+											hàng
+										</span>
+									</span>
+
+								</a>
+							</div>
+							<div class="action-item grey-bg action-user">
+
+								<div class="user-info" sec:authorize="!isAuthenticated()" onclick="toggleAuthModal()"
+									style="cursor: pointer;">
+									<span class="box-icon">
+										<i class="fa-regular fa-user"></i>
+									</span>
+
+									<span class="box-text">
+										<span class="text-top">
+											Đăng
+										</span>
+
+										<span class="text-bottom">
+											nhập
+										</span>
+									</span>
+								</div>
+
+								<div sec:authorize="isAuthenticated()" class="user-logged" style="position: relative;">
+									<div class="user-info" onclick="this.nextElementSibling.classList.toggle('active')"
+										style="cursor: pointer;">
+										<span class="box-icon">
+											<i class="fa-regular fa-user"></i>
+										</span>
+
+										<span class="box-text">
+											<span class="text-top">
+												Xin chào
+											</span>
+
+											<span class="text-bottom" sec:authentication="name">
+												Username
+											</span>
+										</span>
+									</div>
+
+									<div class="user-dropdown"
+										style="display: none; position: absolute; background: white; color: black; box-shadow: 0 4px 8px rgba(0,0,0,0.1); width: 150px; z-index: 100;">
+										<a th:href="@{/profile}"
+											style="display: block; padding: 10px; border-bottom: 1px solid #eee;">Tài
+											khoản</a>
+										<a href="javascript:void(0)" onclick="handleLogout()"
+											style="display: block; padding: 10px; color: red;">Đăng xuất</a>
+									</div>
+								</div>
+
+								<div sec:authorize="!isAuthenticated()" id="auth-modal" class="modal"
+									onclick="event.stopPropagation()">
+									<div class="modal-content">
+										<h2 id="auth-title">Đăng nhập</h2>
+										<div class="auth-toggle">
+											<button class="active" onclick="toggleAuthType('email')">Email</button>
+											<button onclick="toggleAuthType('phone')">Số điện thoại</button>
+										</div>
+										<input type="text" id="auth-input" placeholder="Email của bạn">
+										<input type="password" id="auth-password" placeholder="Mật khẩu">
+										<button id="btn-submit-auth" onclick="handleAuth()">Xác nhận</button>
+										<p onclick="switchMode()"
+											style="cursor: pointer; color: blue; text-decoration: underline; margin-top: 10px;">
+											Chưa có tài khoản? Đăng ký ngay
+										</p>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+	</header>
+	<div th:fragment="subheader_fragment" class="sub-header">
+		<div class="container-fluid">
+			<div class="sub-header-row">
+				<ul class="list-sub-header">
+					<li class="item-sub-header sh-1"><a th:href="@{/homepage}">
+							<span class="icon"><i class="fa-solid fa-tag"></i></span>
+							<span class="text">Mua PC tặng màn 240Hz</span></a>
+					</li>
+					<li class="item-sub-header sh-2"><a th:href="@{/homepage}">
+							<span class="icon"><i class="fa-solid fa-tags"></i></span>
+							<span class="text">Hot Deal | Laptop</span></a>
+					</li>
+					<li class="item-sub-header sh-3"><a th:href="@{/homepage}">
+							<span class="icon"><i class="fa-regular fa-newspaper"></i></span>
+							<span class="text">Tin tức</span></a>
+					</li>
+					<li class="item-sub-header sh-4"><a th:href="@{/homepage}">
+							<span class="icon"><i class="fa-regular fa-house"></i></span>
+							<span class="text">Dịch vụ kỹ thuật tại nhà</span></a>
+					</li>
+					<li class="item-sub-header sh-5"><a th:href="@{/homepage}">
+							<span class="icon"><i class="fa-solid fa-coins"></i></span>
+							<span class="text">Thu cũ đổi mới</span></a>
+					</li>
+					<li class="item-sub-header sh-6"><a th:href="@{/homepage}">
+							<span class="icon"><i class="fa-solid fa-shield"></i></span>
+							<span class="text">Tra cứu bảo hành</span></a>
+					</li>
+				</ul>
+			</div>
+		</div>
+	</div>
+	<div th:fragment="sidebanner_fragment" class="side-banner">
+
+		<div class="banner_left">
+			<a th:href="@{/homepage}"> <img class="banner" th:src="@{/assets/image/gearvn-pc-gvn-sticky-t1-26.png}"
+					alt="PC GVN Tháng 1/26">
+			</a>
+		</div>
+		<div class="banner_right">
+			<a th:href="@{/homepage}"> <img class="banner"
+					th:src="@{/assets/image/gearvn-laptop-gaming-sticky-t1-26.png}" alt="Laptop gaming Tháng 1/26">
+			</a>
+		</div>
+		<div class="popup">
+			<div class="popup-chat_bot"></div>
+			<div class="popup-zalo"></div>
+		</div>
+
+	</div>
+
+	<script th:inline="javascript">
+		window.isUserLoggedIn = /*[[${#authorization.expression('isAuthenticated()')}]]*/ false;
+	</script>
+
+	<footer th:fragment="footer_fragment" class="footer-container">
+		<p>&copy; 2026 ThuongMaiTest</p>
+	</footer>
+
+</body>
+
+</html>

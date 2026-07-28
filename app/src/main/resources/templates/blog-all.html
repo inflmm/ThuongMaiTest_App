@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bài viết</title>
+    <link rel="icon" type="image/svg+xml" th:href="@{/assets/image/eslint-16-svgrepo-com.svg}">
+    <link rel="stylesheet" th:href="@{/assets/css/style.css}">
+    <link rel="stylesheet" th:href="@{/assets/css/pages/blog-all.css}">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css"
+        integrity="sha512-2SwdPD6INVrV/lHTZbO2nodKhrnDdJK9/kg2XD1r9uGqPo1cUbujc+IYdlYdEErWNu69gVcYgdxlmVmzTWnetw=="
+        crossorigin="anonymous" referrerpolicy="no-referrer" />
+</head>
+
+<body>
+    <div th:replace="~{fragments/layout :: topheader_fragment}"></div>
+    <div th:replace="~{fragments/layout :: header_fragment}"></div>
+    <div th:replace="~{fragments/layout :: subheader_fragment}"></div>
+    <div th:replace="~{fragments/layout :: sidebanner_fragment}"></div>
+
+    <div class="main-container">
+        <div class="container-fluid">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item">
+                        <a th:href="@{/homepage}">
+                            <i class="fa-solid fa-house"></i>
+                            Trang chủ
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item active">Tin tức</li>
+                </ol>
+            </nav>
+        </div>
+
+        <div class="bloglist-container">
+            <div class="container-fluid">
+                <div class="blog-header">
+                    <h1>Tất cả bài viết</h1>
+                    <p>Chia sẻ kiến thức và trải nghiệm công nghệ</p>
+                </div>
+            </div>
+
+
+            <div class="container-fluid">
+                <div class="blog-grid">
+                    <div class="blog-card" th:each="blog : ${blogs}">
+                        <div class="blog-thumbnail">
+                            <a th:href="@{/blogs/{slug}(slug=${blog.slug})}">
+                                <img th:src="${blog.thumbnail}" alt="Blog Thumbnail">
+                            </a>
+
+                        </div>
+                        <div class="blog-info">
+                            <h2 class="blog-title">
+                                <a th:href="@{/blogs/{slug}(slug=${blog.slug})}" th:text="${blog.title}">Tiêu đề bài
+                                    viết</a>
+                            </h2>
+                            <p class="blog-summary" th:text="${blog.summary}">Tóm tắt nội dung bài viết ngắn gọn...</p>
+                            <div class="blog-footer">
+                                <span class="blog-date"
+                                    th:text="${#temporals.format(blog.publishTime, 'dd/MM/yyyy')}">27/04/2026</span>
+                                <a th:href="@{/blogs/{slug}(slug=${blog.slug})}" class="read-more">Đọc thêm</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+
+    <div th:replace="~{fragments/layout :: footer_fragment}"></div>
+
+    <script th:src="@{/assets/js/common.js}"></script>
+</body>
+
+</html>

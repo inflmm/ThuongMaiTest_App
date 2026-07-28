@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="${blog.title}">Bài viết</title>
+    <link rel="icon" type="image/svg+xml" th:href="@{/assets/image/eslint-16-svgrepo-com.svg}">
+    <link rel="stylesheet" th:href="@{/assets/css/style.css}">
+    <link rel="stylesheet" th:href="@{/assets/css/pages/blog-detail.css}">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css"
+        integrity="sha512-2SwdPD6INVrV/lHTZbO2nodKhrnDdJK9/kg2XD1r9uGqPo1cUbujc+IYdlYdEErWNu69gVcYgdxlmVmzTWnetw=="
+        crossorigin="anonymous" referrerpolicy="no-referrer" />
+</head>
+
+<body>
+    <div th:replace="~{fragments/layout :: topheader_fragment}"></div>
+    <div th:replace="~{fragments/layout :: header_fragment}"></div>
+    <div th:replace="~{fragments/layout :: subheader_fragment}"></div>
+    <div th:replace="~{fragments/layout :: sidebanner_fragment}"></div>
+
+
+    <div class="main-container">
+        <div class="container-fluid">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item">
+                        <a th:href="@{/homepage}">
+                            <i class="fa-solid fa-house"></i>
+                            Trang chủ
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item">
+                        <a th:href="@{/blogs/all}">Tin tức</a>
+                    </li>
+                    <li class="breadcrumb-item active" th:text="${blog.title}">Tên bài viết</li>
+                </ol>
+            </nav>
+        </div>
+
+        <div class="container-fluid mobile-container-padding">
+            <div class="blog-container">
+                <article class="blog-main-content">
+                    <div class="post-header">
+                        <h1 th:text="${blog.title}">Tiêu đề bài viết</h1>
+                        <div class="post-meta">
+                            Ngày đăng: <span
+                                th:text="${#temporals.format(blog.publishTime, 'dd/MM/yyyy')}">31/12/2025</span>
+                        </div>
+                    </div>
+
+                    <div id="static-toc" class="toc-wrapper-box">
+                        <div class="toc-header-title">
+                            <i class="fa-solid fa-list-ol"></i> Nội dung bài viết
+                        </div>
+                        <nav class="toc-content-list"></nav>
+                    </div>
+
+                    <div id="blog-content" class="rich-text-content" th:utext="${blog.content}"></div>
+
+                    <div id="floating-toc-container">
+                        <button id="toc-toggle-btn" title="Mở mục lục">
+                            <i class="fa-solid fa-list-ul"></i>
+                    </div>
+
+                    <div id="toc-overlay-menu" class="toc-side-overlay">
+                        <div class="toc-overlay-inner">
+                            <div class="toc-header-title">
+                                <i class="fa-solid fa-list-ol"></i> Nội dung bài viết
+                                <button id="toc-close-btn">&times;</button>
+                            </div>
+                            <nav class="toc-content-list"></nav>
+                        </div>
+                    </div>
+
+                    <div id="toc-backdrop" class="overlay-backdrop"></div>
+            </div>
+            </article>
+
+        </div>
+
+    </div>
+    </div>
+
+
+
+
+    <div th:replace="~{fragments/layout :: footer_fragment}"></div>
+
+
+    <script th:inline="javascript">
+        window.CURRENT_BLOG_SLUG = /*[[${blog.slug}]]*/ '';
+    </script>
+    <script th:src="@{/assets/js/common.js}"></script>
+    <script th:src="@{/assets/js/pages/blog-detail.js}"></script>
+</body>
+
+</html>

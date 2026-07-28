@@ -1,0 +1,59 @@
+<?php
+// (Tái sử dụng header, footer, v.v. từ các file khác) 
+?>
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Giỏ hàng của bạn</title>
+    <link rel="stylesheet" th:href="@{/assets/css/style.css}">
+    <link rel="stylesheet" th:href="@{/assets/css/pages/cart.css}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css"
+        integrity="sha512-2SwdPD6INVrV/lHTZbO2nodKhrnDdJK9/kg2XD1r9uGqPo1cUbujc+IYdlYdEErWNu69gVcYgdxlmVmzTWnetw=="
+        crossorigin="anonymous" referrerpolicy="no-referrer" />
+</head>
+
+<body>
+    <div th:replace="~{fragments/layout :: topheader_fragment}"></div>
+    <div th:replace="~{fragments/layout :: header_fragment}"></div>
+    <div th:replace="~{fragments/layout :: subheader_fragment}"></div>
+    <div th:replace="~{fragments/layout :: sidebanner_fragment}"></div>
+
+    <main class="cart-container">
+        <h1>Giỏ hàng của bạn</h1>
+
+        <div class="horizontal">
+            <section id="cart-items" class="cart-details-container">
+            </section>
+
+            <div id="cart-summary" class="summary">
+                <h2>Tóm tắt đơn hàng</h2>
+                <div class="summary-line">
+                    <span>Tổng phụ:</span>
+                    <span id="sub-total">0.00 VNĐ</span>
+                </div>
+                <div class="summary-line">
+                    <span>Phí vận chuyển:</span>
+                    <span>Miễn phí</span>
+                </div>
+                <div class="summary-line total">
+                    <strong>Tổng thanh toán:</strong>
+                    <strong class="product-price" id="final-total">0.00 VNĐ</strong>
+                </div>
+
+                <button id="checkout-button" class="cart-item-checkout" disabled>
+                    Tiến hành Thanh toán
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <div th:replace="~{fragments/layout :: footer_fragment}"></div>
+
+    <script th:src="@{/assets/js/common.js}"></script>
+    <script th:src="@{/assets/js/pages/cart.js}"></script>
+</body>
+
+</html>

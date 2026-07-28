@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <title th:text="${product.name} + ' | GearVN Test'"></title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/svg+xml" th:href="@{/assets/image/eslint-16-svgrepo-com.svg}">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <link rel="stylesheet" th:href="@{/assets/css/style.css}">
+    <link rel="stylesheet" th:href="@{/assets/css/pages/product-detail.css}" media="print" onload="this.media='all'">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+
+    <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" as="style"
+        integrity="sha512-2SwdPD6INVrV/lHTZbO2nodKhrnDdJK9/kg2XD1r9uGqPo1cUbujc+IYdlYdEErWNu69gVcYgdxlmVmzTWnetw=="
+        crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css"
+        integrity="sha512-2SwdPD6INVrV/lHTZbO2nodKhrnDdJK9/kg2XD1r9uGqPo1cUbujc+IYdlYdEErWNu69gVcYgdxlmVmzTWnetw=="
+        crossorigin="anonymous" referrerpolicy="no-referrer" media="print" onload="this.media='all'">
+
+    <link th:if="${product.masterFiles != null and !product.masterFiles.empty}" rel="preload" fetchpriority="high"
+        as="image"
+        th:href="@{/{image_folder_path}/grande/{file}(image_folder_path=${product.image_folder_path}, file=${#strings.replace(product.masterFiles[0], '_master.webp', '_grande.webp')})}"
+        type="image/webp">
+</head>
+
+<body>
+
+    <div th:replace="~{fragments/layout :: topheader_fragment}"></div>
+    <div th:replace="~{fragments/layout :: header_fragment}"></div>
+    <div th:replace="~{fragments/layout :: subheader_fragment}"></div>
+    <div th:replace="~{fragments/layout :: sidebanner_fragment}"></div>
+
+    <div class="main-container">
+        <div class="container-fluid">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item">
+                        <a th:href="@{/homepage}">
+                            <i class="fa-solid fa-house"></i>
+                            Trang chủ
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item">
+                        <a th:href="@{/collections}">Danh mục</a>
+                    </li>
+                    <li class="breadcrumb-item active" th:text="${product.name}">Tên sản phẩm</li>
+                </ol>
+            </nav>
+        </div>
+
+        <div class="container-fluid">
+            <div id="product-detail-content" class="product-detail-container">
+
+                <div class="product-detail-image">
+
+                    <div class="master-container">
+
+                        <button class="master-nav-btn prev" onclick="scrollMasterBtn(-1)">
+                            <i class="fa-solid fa-chevron-left"></i>
+                        </button>
+
+                        <div th:if="${product.masterFiles == null or product.masterFiles.empty}" id="loading-message"
+                            class="loading-message">
+                            <i class="fa-solid fa-circle-notch fa-spin"></i> Đang tải chi tiết sản phẩm...
+                        </div>
+
+                        <div id="master-image-container" class="master-slider">
+                            <img th:each="imgFile, iterStat : ${product.masterFiles}" class="master-item"
+                                th:src="@{/{image_folder_path}/grande/{file}(image_folder_path=${product.image_folder_path}, file=${#strings.contains(imgFile, '_master.') ? #strings.replace(imgFile, '_master.webp', '_grande.webp') : imgFile})}"
+                                th:alt="${product.name} + ' - Ảnh lớn ' + ${iterStat.count}"
+                                th:id="${iterStat.index}">
+                        </div>
+
+                        <button class="master-nav-btn next" onclick="scrollMasterBtn(1)">
+                            <i class="fa-solid fa-chevron-right"></i>
+                        </button>
+                    </div>
+
+                    <div class="thumbnail-wrapper">
+                        <button class="thumb-nav-btn prev" onclick="scrollThumb(-1)">
+                            <i class="fa-solid fa-chevron-left"></i>
+                        </button>
+
+                        <picture id="thumbnail-list" class="thumbnail-slider">
+                            <div th:each="imgFile, iterStat : ${product.masterFiles}"
+                                th:classappend="${iterStat.index == 0} ? 'active' : ''"
+                                th:data-index="${iterStat.index}" class="thumb-item">
+                                <img th:src="@{/{image_folder_path}/compact/{file}(image_folder_path=${product.image_folder_path}, file=${#strings.contains(imgFile, '_master.') ? #strings.replace(imgFile, '_master.webp', '_compact.webp') : imgFile})}"
+                                    th:alt="${product.name} + ' - Ảnh nhỏ thu gọn ' + ${iterStat.count}">
+                            </div>
+                        </picture>
+
+                        <button class="thumb-nav-btn next" onclick="scrollThumb(1)">
+                            <i class="fa-solid fa-chevron-right"></i>
+                        </button>
+
+                    </div>
+                </div>
+
+                <div class="product-detail-info">
+                    <h2 id="detail-name" th:text="${product.name}">Tên sản phẩm</h2>
+
+                    <div class="price">
+                        <span id="detail-price" class="price"
+                            th:text="${#numbers.formatDecimal(product.price, 0, 'POINT', 0, 'COMMA')} + ' ₫'">0 ₫</span>
+                    </div>
+
+                    <div class="description" id="detail-description" th:utext="${product.longDescription}">
+                    </div>
+
+                    <div class="quantity-selector">
+                        <button id="btn-decrease-qty">-</button>
+                        <input type="number" id="detail-quantity" value="1" min="1" readonly>
+                        <button id="btn-increase-qty">+</button>
+                    </div>
+
+                    <div class="product-button">
+                        <button id="add-to-cart-btn" class="btn-add-to-cart">Thêm vào Giỏ hàng</button>
+                    </div>
+
+                    <div id="loading-message" class="loading-message">Đang tải chi tiết sản phẩm...</div>
+                    <div id="error-message" class="error-message" style="display: none;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="image-overlay" class="image-overlay">
+        <div id="overlay-counter" class="overlay-counter">1 / 1</div>
+
+        <div class="overlay-toolbox">
+            <span id="close-overlay" class="close-overlay">&times;</span>
+        </div>
+
+        <button id="overlay-btn-prev" class="overlay-btn prev">&#10094;</button>
+
+        <div id="overlay-image-container" class="overlay-image-container">
+            <img id="overlay-img" src="">
+        </div>
+
+        <button id="overlay-btn-next" class="overlay-btn next">&#10095;</button>
+    </div>
+
+    <script th:inline="javascript">
+        window.INITIAL_PRODUCT_DATA = {
+            id: [[${ product.id }]],
+            slug: [[${ product.slug }]],
+            name: [[${ product.name }]],
+            price: [[${ product.price }]],
+            longDescription: [[${ product.longDescription }]],
+            image_folder_path: [[${ product.image_folder_path }]],
+            masterFiles: [[${ product.masterFiles }]] // Mảng chuỗi: ["prod_1_..webp", "prod_2_..webp"]
+        };
+    </script>
+
+
+    <script th:src="@{/assets/js/common.js}"></script>
+    <script th:src="@{/assets/js/pages/product-detail.js}"></script>
+
+    <div th:replace="~{fragments/layout :: footer_fragment}"></div>
+
+</body>
+
+</html>

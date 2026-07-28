@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="UTF-8">
+    <title>GEARVN - test</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <link rel="stylesheet" th:href="@{/assets/css/style.css}">
+    <link rel="stylesheet" th:href="@{/assets/css/pages/homepage.css}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css"
+        integrity="sha512-2SwdPD6INVrV/lHTZbO2nodKhrnDdJK9/kg2XD1r9uGqPo1cUbujc+IYdlYdEErWNu69gVcYgdxlmVmzTWnetw=="
+        crossorigin="anonymous" referrerpolicy="no-referrer" />
+</head>
+
+<body>
+    <div th:replace="~{fragments/layout :: topheader_fragment}"></div>
+    <div th:replace="~{fragments/layout :: header_fragment}"></div>
+    <div th:replace="~{fragments/layout :: subheader_fragment}"></div>
+    <div th:replace="~{fragments/layout :: sidebanner_fragment}"></div>
+
+    <div class="main-container">
+        <div class="container-fluid">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item">
+                        <a th:href="@{/homepage}">
+                            <i class="fa-solid fa-house"></i>
+                            Trang chủ
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item">
+                        Danh mục
+                    </li>
+                    <li class="breadcrumb-item active">Tên sản phẩm</li>
+                </ol>
+            </nav>
+        </div>
+
+        <div class="container-fluid">
+            <div class="carousel-container">
+                <button class="nav-btn prev" onclick="moveSlide(-1)"><i class="fa-solid fa-angle-left"></i></button>
+                <button class="nav-btn next" onclick="moveSlide(1)"><i class="fa-solid fa-angle-right"></i></button>
+
+                <div id="product-list-container" class="product-list-container"></div>
+            </div>
+        </div>
+    </div>
+
+    <div th:replace="~{fragments/layout :: footer_fragment}"></div>
+
+    <script th:src="@{/assets/js/common.js}"></script>
+    <script th:src="@{/assets/js/pages/homepage.js}"></script>
+</body>
+
+</html>

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đang tải bài viết...</title>
+    <link rel="stylesheet" href="/assets/css/style.css">
+    <link rel="stylesheet" href="/assets/css/pages/blog-detail.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css">
+
+</head>
+<body>
+    <div id="header-placeholder"></div>
+
+    <div class="main-container">
+        <div class="container-fluid">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="/homepage"><i class="fa-solid fa-house"></i> Trang chủ</a></li>
+                    <li class="breadcrumb-item"><a href="/blogs-all">Tin tức</a></li>
+                    <li class="breadcrumb-item active" id="breadcrumb-title">...</li>
+                </ol>
+            </nav>
+        </div>
+
+        <div class="container-fluid mobile-container-padding">
+            <div class="blog-container">
+                <article class="blog-main-content">
+                    <div class="post-header">
+                        <h1 id="post-title">Đang tải tiêu đề...</h1>
+                        <div class="post-meta">
+                            Ngày đăng: <span id="post-date">--/--/----</span>
+                        </div>
+                    </div>
+
+                    <div id="static-toc" class="toc-wrapper-box">
+                        <div class="toc-header-title">
+                            <i class="fa-solid fa-list-ol"></i> Nội dung bài viết
+                        </div>
+                        <nav class="toc-content-list"></nav>
+                    </div>
+
+                    <div id="blog-content" class="rich-text-content">
+                        <p>Đang tải nội dung bài viết...</p>
+                    </div>
+
+                    <div id="floating-toc-container">
+                        <button id="toc-toggle-btn" title="Mở mục lục" class="">
+                            <i class="fa-solid fa-list-ul"></i>
+                        </button>
+                    </div>
+
+                    <div id="toc-overlay-menu" class="toc-side-overlay">
+                        <div class="toc-overlay-inner">
+                            <div class="toc-header-title">
+                                <i class="fa-solid fa-list-ol"></i> Nội dung bài viết
+                                <button id="toc-close-btn">&times;</button>
+                            </div>
+                            <nav class="toc-content-list"></nav>
+                        </div>
+                    </div>
+                    <div id="toc-backdrop" class="overlay-backdrop"></div>
+                </article>
+            </div>
+        </div>
+    </div>
+
+    <script src="/assets/js/common.js"></script>
+    <script src="/assets/js/pages/blog-detail-api-fetch.js"></script>
+</body>
+</html>

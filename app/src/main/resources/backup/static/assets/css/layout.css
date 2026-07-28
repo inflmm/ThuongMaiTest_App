@@ -1,0 +1,384 @@
+/* TABLE OF CONTENTS:
+  1. Header
+  2. Banner
+  3. Popup
+  4. Footer
+*/
+
+/* --- [Header] --- */
+.top-header {
+		background-color: #027fff;
+		height: auto;
+	}
+
+img.top-header {
+	width: 100%;
+	height: 100%;
+	object-fit: contain;
+	display: block;
+}
+
+header {
+	position: sticky;
+	top: 0;
+	z-index: 1000;
+}
+
+.main-header {
+	background-color: #e30019;
+	display: flex;
+	flex-grow: flex-start;
+}
+.main-header-row{
+	display: flex;
+	padding: 6px 0;
+}
+
+.main-header-left {
+	display: flex;
+    align-items: center;
+    flex-shrink: 0; /* Logo và Danh mục giữ nguyên kích thước */
+	
+}
+
+.main-header-right {
+	display: flex;
+    align-items: center;
+    flex-shrink: 0;  /* QUAN TRỌNG: Không cho phép cụm Action bị co lại hay nhảy dòng */
+	flex-grow: 1;
+    flex-wrap: nowrap; /* Tuyệt đối không cho xuống hàng */
+}
+
+.header-logo {
+	flex-shrink: 0;
+}
+
+img.header-logo {
+	width: 140px;
+	height: 100%;
+	object-fit: contain;
+	display: block;
+}
+
+.category-btn {
+	display: flex;
+	margin: 10px;
+	padding: 10px 5px;
+	
+	align-items: center;
+	height: 40px;
+}
+
+.grey-bg{
+	background-color: rgba(0, 0, 0, 0.25);
+	color: #fff;
+	border-radius: 4px;
+}
+
+.search-box {
+	display: flex;
+	background: #fff;
+	border-radius: 4px;
+	height: 40px;
+	overflow: hidden;
+	margin: auto;
+	position: relative;
+	flex-grow: 1;    /* Chiếm hết phần diện tích còn lại */
+    min-width: 50px;
+	max-width: 800px;
+	margin: auto 0;
+}
+
+.search-box input {
+	border: none;
+	padding: 0 0 0 15px;
+	flex: 1; /* Chiếm hết khoảng trống */
+	outline: none;
+	width: 50px;
+}
+
+.search-box button {
+	background: none;
+	border: none;
+	padding: 0 15px;
+	cursor: pointer;
+	position: static;
+	right: 10px;
+}
+
+.header-actions {
+	flex-shrink: 0;
+	flex-wrap: nowrap;
+}
+
+.action-item {
+	display: flex;
+    align-items: center;
+    white-space: nowrap; /* Không cho chữ nhảy xuống dòng */
+    font-size: 15px;
+    gap: 4px;
+	margin: auto 5px;
+	padding: 5px;
+}
+
+.header-cart__link, .header-don-hang{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+}
+
+.user-info {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+}
+
+.box-icon{
+	position: relative;
+}
+
+.box-text{
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	line-height: 1.2;
+	margin-left: 10px;
+}
+.text-top{
+
+}
+.text-bottom{
+
+}
+
+.cart-count {
+    position: absolute;
+    top: -8px; 
+    right: -8px;
+    background-color: #ffcc00; /* Màu vàng đặc trưng */
+    color: #000;
+    font-size: 11px;
+    font-weight: bold;
+    width: 18px;
+    height: 18px;
+    
+    /* Dùng flex để con số luôn nằm giữa vòng tròn */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    
+    border: 2px solid #e30019; /* Màu nền của header để tạo cảm giác tách biệt */
+    border-radius: 50%; /* Bo tròn hoàn hảo */
+    line-height: 1;
+}
+
+.sub-header {
+	background-color: #ffffff;
+    border-bottom: 1px solid #e0e0e0;
+    height: 42px; /* Chiều cao cố định cho thanh sub-nav */
+    display: flex;
+    align-items: center;
+    justify-content: center; /* Căn giữa toàn bộ menu */
+}
+
+.list-sub-header {
+	display: flex;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    height: 100%;
+	width: 100%;
+}
+
+.item-sub-header {
+	position: relative;
+    display: flex;
+    align-items: center;
+    height: 2rem;
+	justify-content: space-between;
+  	flex: 1;
+}
+
+.item-sub-header a {
+	display: flex;
+	position: relative;
+    align-items: center;
+	justify-content: center;
+    padding: 0 15px; /* Khoảng cách giữa chữ và đường kẻ */
+	width: 100%;
+    height: 100%;
+    text-decoration: none;
+    color: #343a40;
+    font-size: 13px; /* Cỡ chữ nhỏ gọn như GearVN */
+    font-weight: 500;
+    transition: color 0.2s ease;
+	white-space: nowrap;
+}
+
+/* Hiệu ứng đặc biệt cho các icon (nếu có) */
+.item-sub-header i {
+    margin-right: 6px;
+    font-size: 16px;
+}
+
+.item-sub-header:not(:last-child) a::after {
+	content: "";
+	position: absolute;
+	width: 1px;
+	height: 62%;
+	background-color: #343a40;
+	margin: auto;
+	top: 0;
+    bottom: 0;
+    right: 0;
+}
+
+.item-sub-header a:hover {
+	color: #dc3545;
+}
+
+.modal-content{
+	flex-direction: column;
+  	display: flex;
+}
+
+/* --- [Banner] --- */
+.side-banner {
+	position: fixed;
+	top: 195px;
+	left: 0;
+	right: 0;
+	z-index: 99;
+	transition: top 0.3s ease-in-out;
+}
+/* Class này sẽ được JS thêm vào khi cuộn xuống */
+.side-banner.scrolled {
+	top: 100px; /* Vị trí mới khi Header đã thu nhỏ */
+}
+
+.banner_left {
+	height: 302px;
+	width: 100px;
+	left: 10px;
+	position: absolute;
+}
+
+.banner_right {
+	height: 302px;
+	width: 100px;
+	right: 10px;
+	position: absolute;
+}
+
+img.banner {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	display: block;
+}
+
+
+
+/* --- [Popup] --- */
+.popup {
+	position: fixed;
+	left: 95%;
+	right: 2%;
+	top: 80%;
+	bottom: 10%;
+}
+
+.popup-chat_bot {
+	width: 50px;
+	height: 50px;
+	right: 1.5%;
+	bottom: 60px;
+	border-radius: 180px;
+	background-color: #fc8c86;
+	position: absolute;
+}
+
+.popup-zalo {
+	width: 50px;
+	height: 50px;
+	right: 1.5%;
+	bottom: 0;
+	border-radius: 180px;
+	background-color: #2861fd;
+	position: absolute;
+}
+
+/* --- [Foooter] --- */
+.footer-container {
+	background-color: #e30019;
+	color: #fff;
+	padding: 10%;
+	height: 30%;
+}
+
+/* --- [1. PC MODE 2] --- */
+@media (max-width: 1170px) {
+	.side-banner{
+		display: none;
+	}
+	.box-text{
+		display: none;
+	}
+
+	.category-btn, 
+    .action-item.grey-bg { 
+        background-color: transparent !important;
+        padding: 0 !important;
+        border: none !important;
+    }
+
+    /* Giữ lại background cho Giỏ hàng (nếu bạn muốn) */
+    .action-item.action-cart{ 
+        background-color: rgba(0, 0, 0, 0.25);
+		color: #fff;
+        border-radius: 4px;
+    }
+
+	.category-btn,
+	.action-item,
+	.user-info{
+		font-size: 21px;
+		padding: 9px;
+	}
+}
+/* --- [2. TABLET MODE ] --- */
+@media (max-width: 992px) {
+	.top-header {
+        display: none;
+    }
+	.sub-header {
+        display: none;
+    }
+	.action-item:not(.action-cart,.action-user) {
+        display: none !important;
+    }
+	.main-header-row{
+		padding: 0 !important;
+	}
+	.main-header-left{
+		flex-direction: row-reverse;
+		margin-right: 10px;
+	}
+	img.header-logo {
+        content: url('/assets/image/logo-mobile_1e5b7fc485b24cf985b3d63cfa1f88be.svg'); /* Đường dẫn tới logo mobile */
+        width: 40px; /* Thường logo mobile sẽ nhỏ gọn hơn */
+		margin-left: 5px;
+    }
+	.category-btn{
+		font-size: 21px;
+		padding: 0px;
+	}
+}
+/* --- [3. PHONE MODE] --- */
+@media (max-width: 768px) {
+	img.header-logo {
+        content: url('/assets/image/logo-mobile_1e5b7fc485b24cf985b3d63cfa1f88be.svg'); /* Đường dẫn tới logo mobile */
+        width: 30px; /* Thường logo mobile sẽ nhỏ gọn hơn */
+		margin-left: 5px;
+    }
+}
