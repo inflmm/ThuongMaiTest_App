@@ -1,7 +1,8 @@
 /**
  * admin-core.js - Quản lý điều hướng và trạng thái Admin
  */
-const API_BASE_URL = 'https://192.168.1.9:8443';
+//const API_BASE_URL = 'https://192.168.1.9:8443';
+const API_BASE_URL = window.location.origin; // Tự động lấy domain hiện tại
 // Hàm xử lý nối URL
 function joinUrl(base, path) {
     if (!path) return base;

@@ -1,7 +1,8 @@
 
 
 //const API_BASE_URL = 'http://localhost:8080';
-const API_BASE_URL = 'https://192.168.1.9:8443';
+//const API_BASE_URL = 'https://192.168.1.9:8443';
+const API_BASE_URL = window.location.origin; // Tự động lấy domain hiện tại
 
 // Gắn biến api ở mức cấp cao nhất, phòng không lấy được const API_BASE_URL
 window.API_BASE_URL = window.API_BASE_URL || API_BASE_URL;

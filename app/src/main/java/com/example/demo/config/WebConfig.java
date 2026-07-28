@@ -18,15 +18,13 @@ public class WebConfig implements WebMvcConfigurer {
 
 	@Override
 	public void addResourceHandlers(ResourceHandlerRegistry registry) {
-		// Ánh xạ đường dẫn URL "/images/**" tới thư mục vật lý vd:
-		// "file:///C:/ecommerce-uploads/images/"
-		// Lưu ý: Cần có dấu '/' ở cuối
-		String imagePath = "file:///C:/ecommerce-uploads/images/";
-		registry.addResourceHandler("/images/**").addResourceLocations(imagePath);
+	    // Sửa đường dẫn C:/ thành thư mục tương đối làm việc của Linux container[cite: 5]
+	    String uploadDir = "file:" + System.getProperty("user.dir") + "/uploads/images/";
+	    registry.addResourceHandler("/images/**").addResourceLocations(uploadDir);
 
-		// 2. Đảm bảo các file tĩnh trong project vẫn hoạt động bình thường
-		registry.addResourceHandler("/**").addResourceLocations("classpath:/static/");
+	    String articleDir = "file:" + System.getProperty("user.dir") + "/uploads/articles/";
+	    registry.addResourceHandler("/articles/**").addResourceLocations(articleDir);
 
-		registry.addResourceHandler("/articles/**").addResourceLocations("file:///C:/ecommerce-uploads/articles/");
+	    registry.addResourceHandler("/**").addResourceLocations("classpath:/static/");
 	}
 }
