@@ -1,6 +1,7 @@
 package com.example.demo.controller;
 
 import java.io.IOException;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -25,7 +26,7 @@ public class AdminFolderController {
 
     @GetMapping
     public ResponseEntity<?> getFolderTree() throws IOException {
-        Path root = Paths.get(ROOT_PATH);
+        Path root = ROOT_PATH;
         if (!Files.exists(root)) {
 			Files.createDirectories(root);
 		}
@@ -43,7 +44,7 @@ public class AdminFolderController {
     @PostMapping
     public ResponseEntity<?> createFolder(@RequestParam String path) {
         try {
-            Path newDirPath = Paths.get(ROOT_PATH).resolve(path);
+            Path newDirPath = ROOT_PATH.resolve(path);
             Files.createDirectories(newDirPath);
             return ResponseEntity.ok("Đã tạo thư mục: " + path);
         } catch (Exception e) {
@@ -54,7 +55,7 @@ public class AdminFolderController {
     @DeleteMapping
     public ResponseEntity<?> deleteFolder(@RequestParam String path) {
         try {
-            Path dirPath = Paths.get(ROOT_PATH).resolve(path);
+            Path dirPath = ROOT_PATH.resolve(path);
 
             if (!Files.exists(dirPath)) {
                 return ResponseEntity.status(404).body("Thư mục không tồn tại");
@@ -76,7 +77,7 @@ public class AdminFolderController {
 
     @GetMapping("/images/tree")
     public ResponseEntity<?> getImageFolderTree() throws IOException {
-        Path root = Paths.get(IMAGE_ROOT);
+        Path root = IMAGE_ROOT;
         if (!Files.exists(root)) {
 			Files.createDirectories(root);
 		}
@@ -91,7 +92,7 @@ public class AdminFolderController {
 
     @GetMapping("/images/files")
     public ResponseEntity<?> getFilesByFolder(@RequestParam String path) throws IOException {
-        Path dirPath = Paths.get(IMAGE_ROOT).resolve(path);
+        Path dirPath = IMAGE_ROOT.resolve(path);
         if (!Files.exists(dirPath)) {
 			return ResponseEntity.notFound().build();
 		}
