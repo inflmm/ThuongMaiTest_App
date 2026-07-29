@@ -21,7 +21,7 @@ import net.coobird.thumbnailator.Thumbnails;
 @Service
 public class ImageUploadService {
 
-	private Path baseDir = Paths.get("C:/ecommerce-uploads/images/");
+	private Path baseDir = Paths.get(System.getProperty("user.dir"), "uploads", "images");
 	
 	@Autowired
     private ProductRepository productRepository;

@@ -31,9 +31,9 @@ public class Product extends BaseEntity {
     private String imageUrl;
     private String image_folder_path;
 
-    @Lob // Để lưu nội dung dài (LONGTEXT trong SQL)
+    @Lob // Để lưu nội dung dài
     @JsonIgnore	// Dùng JsonIgnore để bỏ qua khi tạo file Json, để lấy thuộc tính này cần lấy thông qua dto hoặc hàm có mapping khác
-    @Column(columnDefinition = "LONGTEXT")
+    @Column(columnDefinition = "text")
     private String longDescription;
 
 

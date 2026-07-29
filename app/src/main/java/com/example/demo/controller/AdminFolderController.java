@@ -19,9 +19,9 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/admin/folders")
 public class AdminFolderController {
 
-	private final String ROOT_PATH = "C:/ecommerce-uploads/articles/";
+	private final Path ROOT_PATH = Paths.get(System.getProperty("user.dir"), "uploads", "articles");
 
-	private final String IMAGE_ROOT = "C:/ecommerce-uploads/images/";
+	private final Path IMAGE_ROOT = Paths.get(System.getProperty("user.dir"), "uploads", "images");
 
     @GetMapping
     public ResponseEntity<?> getFolderTree() throws IOException {

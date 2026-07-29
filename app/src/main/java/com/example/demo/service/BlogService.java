@@ -58,13 +58,12 @@ public class BlogService {
     // Hàm bổ trợ đọc file content (giữ nguyên logic cũ của bạn)
     private Blog loadContentFromFile(Blog blog) {
     	String subFolder = (blog.getContentPath() == null) ? "" : blog.getContentPath();
-        String folderPath = "C:/ecommerce-uploads/articles/" + subFolder;
+        Path folderPath = Paths.get(System.getProperty("user.dir"), "uploads", "articles", subFolder);
         String fileName = blog.getSlug() + ".html";
-        String filePath = folderPath + fileName;
+        Path filePath = folderPath.resolve(fileName);
         try {
-            Path path = Paths.get(filePath);
-            if (Files.exists(path)) {
-                blog.setContent(Files.readString(path, StandardCharsets.UTF_8));
+            if (Files.exists(filePath)) {
+                blog.setContent(Files.readString(filePath, StandardCharsets.UTF_8));
             }
         } catch (IOException e) {
             blog.setContent("<p>Lỗi đọc nội dung bài viết.</p>");
@@ -75,7 +74,7 @@ public class BlogService {
     public Blog createNewBlog(Blog blog, String rawContent) throws IOException {
         // 1. Kiểm tra thư mục (contentPath) đã tồn tại chưa
         String subFolder = (blog.getContentPath() == null) ? "" : blog.getContentPath();
-        Path folderPath = Paths.get("C:/ecommerce-uploads/articles/" + subFolder);
+        Path folderPath = Paths.get(System.getProperty("user.dir"), "uploads", "articles", subFolder);
 
         if (!Files.exists(folderPath)) {
             throw new IOException("Thư mục lưu trữ không tồn tại. Vui lòng tạo thư mục trước.");
@@ -115,7 +114,7 @@ public class BlogService {
 			subFolder += "/";
 		}
 
-        Path baseDir = Paths.get("C:/ecommerce-uploads/articles/", subFolder);
+        Path baseDir = Paths.get(System.getProperty("user.dir"), "uploads", "articles", subFolder);
 
         // 2. Logic đổi tên file nếu đổi Slug
         if (!oldSlug.equals(newSlug)) {

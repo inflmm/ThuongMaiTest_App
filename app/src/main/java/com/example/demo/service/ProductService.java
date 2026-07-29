@@ -133,7 +133,7 @@ public class ProductService {
 			return new ArrayList<>();
 		}
 
-        String rootPath = "C:\\ecommerce-uploads\\";
+        String rootPath = Paths.get(System.getProperty("user.dir"), "uploads").toString();
         File folder = new File(rootPath, folderPath + "/master");
 
         if (folder.exists() && folder.isDirectory()) {
