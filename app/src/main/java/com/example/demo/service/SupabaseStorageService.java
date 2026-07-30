@@ -9,6 +9,7 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
@@ -103,7 +104,17 @@ public class SupabaseStorageService {
     // Hàm này sẽ liệt kê các đối tượng (file hoặc thư mục) trong Supabase Storage dựa trên root folder và đường dẫn tương đối được cung cấp. Nếu foldersOnly là true, chỉ trả về các thư mục; nếu false, trả về cả file và thư mục.
     public List<String> listObjects(StorageRoot root, String prefix, boolean foldersOnly) throws IOException {
         String normalizedPrefix = normalizePath(prefix);
-        String listApiUrl = String.format("%s/storage/v1/object/list/%s?prefix=%s&limit=1000", supabaseUrl, bucketName, normalizedPrefix);
+        String storagePrefix = root.getFolder();
+        if (!normalizedPrefix.isEmpty()) {
+            storagePrefix += "/" + normalizedPrefix;
+        }
+
+        String listApiUrl = String.format(
+            "%s/storage/v1/object/list/%s?prefix=%s&limit=1000",
+            supabaseUrl,
+            bucketName,
+            URLEncoder.encode(storagePrefix, StandardCharsets.UTF_8)
+        );
 
         HttpHeaders headers = new HttpHeaders();
         headers.set("Authorization", "Bearer " + serviceKey);
@@ -119,7 +130,7 @@ public class SupabaseStorageService {
 
         List<Map<String, Object>> objects = objectMapper.readValue(response.getBody(), new TypeReference<List<Map<String, Object>>>() {});
         Set<String> result = new LinkedHashSet<>();
-        String pathPrefix = root.getFolder() + "/" + normalizedPrefix;
+        String pathPrefix = storagePrefix;
         if (!pathPrefix.endsWith("/")) {
             pathPrefix += "/";
         }
@@ -137,6 +148,8 @@ public class SupabaseStorageService {
                 int slashIndex = relative.indexOf('/');
                 if (slashIndex >= 0) {
                     result.add(relative.substring(0, slashIndex));
+                } else if (!relative.contains(".")) {
+                    result.add(relative);
                 }
             } else {
                 if (!relative.contains("/")) {

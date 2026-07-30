@@ -144,16 +144,18 @@ function buildTree(paths) {
     const result = {};
     const safePaths = Array.isArray(paths) ? paths : [];
     safePaths.forEach(path => {
-        if (path === '') {
-            //bỏ qua thư mục gốc
-        } else {
-            const parts = path.split('/');
-            let current = result;
-            parts.forEach(part => {
-                if (!current[part]) current[part] = { _isFolder: true, _path: path };
-                current = current[part];
-            });
+        const normalizedPath = String(path || '').trim().replace(/^\/+|\/+$/g, '');
+        if (!normalizedPath) {
+            return;
         }
+
+        const parts = normalizedPath.split('/').filter(Boolean);
+        let current = result;
+        parts.forEach((part, index) => {
+            const folderPath = parts.slice(0, index + 1).join('/');
+            if (!current[part]) current[part] = { _isFolder: true, _path: folderPath };
+            current = current[part];
+        });
     });
     return result;
 }
@@ -247,9 +249,10 @@ async function loadBlogs(page = 0) {
         AdminApp.showLoading(true);
         // Url lấy blog mặc định
         let url = `/api/admin/blogs?page=${page}&size=10`;
-        if (currentSelectedFolder) {
+        const folderParam = currentSelectedFolder ? currentSelectedFolder.replace(/^\/+|\/+$/g, '') : '';
+        if (folderParam) {
             // Url lấy từ thư mục
-            url += `&folder=${encodeURIComponent(currentSelectedFolder)}` + '/'; // Trong db lưu contentpath có dấu / ở cuối
+            url += `&folder=${encodeURIComponent(folderParam)}`;
         }
 
         const response = await fetch(url.toString());
