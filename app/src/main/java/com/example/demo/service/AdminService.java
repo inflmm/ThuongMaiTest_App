@@ -1,0 +1,32 @@
+package com.example.demo.service;
+
+import java.io.IOException;
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.example.demo.service.SupabaseStorageService.StorageRoot;
+
+@Service
+public class AdminService {
+
+    @Autowired
+    private SupabaseStorageService supabaseStorageService;
+
+    public List<String> listFolders(StorageRoot root, String prefix) throws IOException {
+        return supabaseStorageService.listObjects(root, prefix, true);
+    }
+
+    public List<String> listFiles(StorageRoot root, String prefix) throws IOException {
+        return supabaseStorageService.listObjects(root, prefix, false);
+    }
+
+    public void createFolder(StorageRoot root, String folderPath) throws IOException {
+        supabaseStorageService.createFolder(root, folderPath);
+    }
+
+    public void deleteFolder(StorageRoot root, String folderPath) throws IOException {
+        supabaseStorageService.deleteFolder(root, folderPath);
+    }
+}
