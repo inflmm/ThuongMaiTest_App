@@ -14,12 +14,20 @@ public class AdminService {
     @Autowired
     private SupabaseStorageService supabaseStorageService;
 
-    public List<String> listFolders(StorageRoot root, String prefix) throws IOException {
-        return supabaseStorageService.listObjects(root, prefix, true);
+    public List<String> listFolders(StorageRoot root, String prefix) {
+        try {
+            return supabaseStorageService.listObjects(root, prefix, true);
+        } catch (Exception ex) {
+            return List.of();
+        }
     }
 
-    public List<String> listFiles(StorageRoot root, String prefix) throws IOException {
-        return supabaseStorageService.listObjects(root, prefix, false);
+    public List<String> listFiles(StorageRoot root, String prefix) {
+        try {
+            return supabaseStorageService.listObjects(root, prefix, false);
+        } catch (Exception ex) {
+            return List.of();
+        }
     }
 
     public void createFolder(StorageRoot root, String folderPath) throws IOException {

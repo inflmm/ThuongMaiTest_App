@@ -129,17 +129,21 @@ async function loadFolders(forceRefresh = false, type = 'articles') {
 
     try {
         const response = await fetch(joinUrl(API_BASE_URL, apiUrl));
-        const paths = await response.json();
+        const payload = await response.json();
+        const paths = Array.isArray(payload) ? payload : [];
         folderDataCache[type] = buildTree(paths); // Lưu vào cache
         renderTreeUI(folderDataCache[type], type);
     } catch (e) {
         console.error("Lỗi tải thư mục:", e);
+        folderDataCache[type] = {};
+        renderTreeUI(folderDataCache[type], type);
     }
 }
 
 function buildTree(paths) {
     const result = {};
-    paths.forEach(path => {
+    const safePaths = Array.isArray(paths) ? paths : [];
+    safePaths.forEach(path => {
         if (path === '') {
             //bỏ qua thư mục gốc
         } else {

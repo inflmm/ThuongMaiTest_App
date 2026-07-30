@@ -23,7 +23,7 @@ public class AdminFolderController {
     private AdminService adminService;
 
     @GetMapping
-    public ResponseEntity<?> getFolderTree() throws IOException {
+    public ResponseEntity<?> getFolderTree() {
         List<String> folders = adminService.listFolders(StorageRoot.ARTICLES, "");
         return ResponseEntity.ok(folders);
     }
@@ -51,13 +51,13 @@ public class AdminFolderController {
     }
 
     @GetMapping("/images/tree")
-    public ResponseEntity<?> getImageFolderTree() throws IOException {
+    public ResponseEntity<?> getImageFolderTree() {
         List<String> folders = adminService.listFolders(StorageRoot.IMAGES, "");
         return ResponseEntity.ok(folders);
     }
 
     @GetMapping("/images/files")
-    public ResponseEntity<?> getFilesByFolder(@RequestParam String path) throws IOException {
+    public ResponseEntity<?> getFilesByFolder(@RequestParam String path) {
         List<String> files = adminService.listFiles(StorageRoot.IMAGES, path);
         return ResponseEntity.ok(files);
     }
