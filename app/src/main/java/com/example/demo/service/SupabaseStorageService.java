@@ -108,6 +108,9 @@ public class SupabaseStorageService {
         if (!normalizedPrefix.isEmpty()) {
             storagePrefix += "/" + normalizedPrefix;
         }
+        if (!storagePrefix.endsWith("/")) {
+            storagePrefix += "/";
+        }
 
         String listApiUrl = String.format(
             "%s/storage/v1/object/list/%s?prefix=%s&limit=1000",

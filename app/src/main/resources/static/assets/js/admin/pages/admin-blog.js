@@ -928,6 +928,7 @@ async function openImageExplorer(onSelectCallback) {
     });
 
     await loadFolders(false, 'images');
+    await loadImagesInFolder('');
 }
 
 function toggleExpNav() {
@@ -939,19 +940,19 @@ function togglePreviewBox() {
 
 // Hàm load file ảnh từ Backend
 async function loadImagesInFolder(path) {
-    currentSelectedFolder = path;
-    updateFolderActiveUI(path);
+    const normalizedPath = (path || '').replace(/^\/+|\/+$/g, '');
+    currentSelectedFolder = normalizedPath;
+    updateFolderActiveUI(normalizedPath);
 
     const mainArea = document.getElementById('exp-files');
     mainArea.innerHTML = '<div class="p-3">Đang tải...</div>';
 
     try {
-        // Đảm bảo path truyền vào có dạng 'images/thu-muc-con'
-        const url = joinUrl(API_BASE_URL, `/api/admin/folders/images/files?path=${encodeURIComponent(path)}`);
+        const url = joinUrl(API_BASE_URL, `/api/admin/folders/images/files?path=${encodeURIComponent(normalizedPath)}`);
         const response = await fetch(url);
         const files = await response.json();
 
-        updateImageExplorerPath(path);
+        updateImageExplorerPath(normalizedPath);
 
         if (!files || files.length === 0) {
             mainArea.innerHTML = `
@@ -965,9 +966,8 @@ async function loadImagesInFolder(path) {
 
         mainArea.innerHTML = files.map(file => {
             const fileName = file.name || file;
-            // Đường dẫn ảnh để hiển thị: /images/blog/photo.jpg
-            const imagePath = `/${path}/${fileName}`.replace(/\/+/g, '/');
-            const fullUrl = joinUrl(API_BASE_URL, 'images' + imagePath);
+            const imagePath = normalizedPath ? `/${normalizedPath}/${fileName}` : `/${fileName}`;
+            const fullUrl = joinUrl(API_BASE_URL, 'images' + imagePath.replace(/\/+/g, '/'));
 
             return `
                 <div class="img-item-card" onclick="previewImage('${imagePath}', this)">
@@ -1013,11 +1013,9 @@ function updateImageExplorerPath(path) {
     const pathDisplay = document.getElementById('image-explorer-link');
 
     if (pathDisplay) {
-        // Làm sạch path để hiển thị: loại bỏ dấu gạch chéo dư thừa
-        const cleanDisplay = path.startsWith('/') ? path.substring(1) : path;
-        pathDisplay.innerText = 'images/' + cleanDisplay.split('/').join('/');
-    } else {
-        //console.warn("Không tìm thấy ID 'image-explorer-link' trong DOM!");
+        const normalizedPath = (path || '').replace(/^\/+|\/+$/g, '');
+        const cleanDisplay = normalizedPath.split('/').filter(Boolean).join('/');
+        pathDisplay.innerText = cleanDisplay ? `images/${cleanDisplay}` : 'images';
     }
 }
 
