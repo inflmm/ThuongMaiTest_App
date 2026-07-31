@@ -1449,7 +1449,7 @@ function openUploadOverlay() {
                         </div>
 
                         <div id="webp-note-helper" style="color: #d97706; font-size: 11px; line-height: 1.4;">
-                            <i class="fa-solid fa-triangle-exclamation"></i> <strong>Lưu ý:</strong> WebP là định dạng mặc định và phù hợp cho ưu tiên dung lượng. Nếu máy chủ chưa cài libwebp, có thể chọn JPG.
+                            <i class="fa-solid fa-triangle-exclamation"></i> <strong>Lưu ý:</strong> WebP là định dạng mặc định và phù hợp cho trang web vì tối ưu dung lượng và chất lượng ảnh. Tuy nhiên server host không cài libwebp, có thể chọn JPG thay thế.
                         </div>
                     </div>
                 </div>

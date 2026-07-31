@@ -9,13 +9,7 @@ RUN mvn clean package -DskipTests
 # ==========================================
 # STAGE 2: Chạy ứng dụng & Cài đặt libwebp
 # ==========================================
-FROM eclipse-temurin:17-jdk
-
-# Cài đặt thư viện libwebp & cwebp công cụ nén ảnh trên nền Linux (Debian/Ubuntu)
-RUN apt-get update && apt-get install -y \
-    webp \
-    libwebp-dev \
-    && rm -rf /var/lib/apt/lists/*
+FROM eclipse-temurin:17-jre
 
 WORKDIR /app
 COPY --from=builder /app/target/*.jar app.jar
