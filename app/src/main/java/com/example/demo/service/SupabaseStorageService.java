@@ -72,6 +72,10 @@ public class SupabaseStorageService {
     }
     // Hàm này sẽ tải nội dung của một file từ Supabase Storage dựa trên root folder và đường dẫn tương đối được cung cấp. Nội dung được trả về dưới dạng String.
     public String downloadFile(StorageRoot root, String relativePath) throws IOException {
+        return new String(downloadBytes(root, relativePath), StandardCharsets.UTF_8);
+    }
+
+    public byte[] downloadBytes(StorageRoot root, String relativePath) throws IOException {
         String objectPath = buildObjectPath(root, relativePath, null);
         String downloadApiUrl = String.format("%s/storage/v1/object/%s/%s", supabaseUrl, bucketName, objectPath);
 
@@ -83,7 +87,7 @@ public class SupabaseStorageService {
         ResponseEntity<byte[]> response = restTemplate.exchange(downloadApiUrl, HttpMethod.GET, requestEntity, byte[].class);
 
         if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-            return new String(response.getBody(), StandardCharsets.UTF_8);
+            return response.getBody();
         }
         throw new IOException("Lỗi tải file từ Supabase: " + response.getStatusCode());
     }
@@ -102,30 +106,29 @@ public class SupabaseStorageService {
         return response.getStatusCode().is2xxSuccessful();
     }
     // Hàm này sẽ liệt kê các đối tượng (file hoặc thư mục) trong Supabase Storage dựa trên root folder và đường dẫn tương đối được cung cấp. Nếu foldersOnly là true, chỉ trả về các thư mục; nếu false, trả về cả file và thư mục.
+    // Hàm đã được tối ưu sửa lỗi lấy thiếu thư mục và lọc sai ảnh/folder
     public List<String> listObjects(StorageRoot root, String prefix, boolean foldersOnly) throws IOException {
         String normalizedPrefix = normalizePath(prefix);
         String storagePrefix = root.getFolder();
         if (!normalizedPrefix.isEmpty()) {
             storagePrefix += "/" + normalizedPrefix;
         }
-        if (!storagePrefix.endsWith("/")) {
-            storagePrefix += "/";
-        }
 
-        String listApiUrl = String.format(
-            "%s/storage/v1/object/list/%s?prefix=%s&limit=1000",
-            supabaseUrl,
-            bucketName,
-            URLEncoder.encode(storagePrefix, StandardCharsets.UTF_8)
-        );
+        String listApiUrl = String.format("%s/storage/v1/object/list/%s", supabaseUrl, bucketName);
 
         HttpHeaders headers = new HttpHeaders();
         headers.set("Authorization", "Bearer " + serviceKey);
         headers.set("apikey", serviceKey);
         headers.setAccept(Collections.singletonList(MediaType.APPLICATION_JSON));
+        headers.setContentType(MediaType.APPLICATION_JSON);
 
-        HttpEntity<Void> requestEntity = new HttpEntity<>(headers);
-        ResponseEntity<String> response = restTemplate.exchange(listApiUrl, HttpMethod.GET, requestEntity, String.class);
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("prefix", storagePrefix);
+        body.put("limit", 1000); // Lưu ý: Nếu > 1000 items cần làm vòng lặp offset
+        body.put("sortBy", Map.of("column", "name", "order", "asc"));
+
+        HttpEntity<Map<String, Object>> requestEntity = new HttpEntity<>(body, headers);
+        ResponseEntity<String> response = restTemplate.exchange(listApiUrl, HttpMethod.POST, requestEntity, String.class);
 
         if (!response.getStatusCode().is2xxSuccessful()) {
             throw new IOException("Supabase list API failed: " + response.getBody());
@@ -133,30 +136,31 @@ public class SupabaseStorageService {
 
         List<Map<String, Object>> objects = objectMapper.readValue(response.getBody(), new TypeReference<List<Map<String, Object>>>() {});
         Set<String> result = new LinkedHashSet<>();
-        String pathPrefix = storagePrefix;
-        if (!pathPrefix.endsWith("/")) {
-            pathPrefix += "/";
-        }
 
         for (Map<String, Object> object : objects) {
             String name = (String) object.get("name");
-            if (name == null || !name.startsWith(pathPrefix)) {
-                continue;
+            if (name == null || name.isBlank()) continue;
+
+            // Kiểm tra xem đối tượng này là Folder hay File dựa trên dữ liệu của Supabase:
+            // 1. Supabase trả về id = null cho Virtual Folder
+            // 2. Hoặc metadata = null cho Folder
+            boolean isFolder = (object.get("id") == null) || (object.get("metadata") == null);
+
+            // Xử lý trường hợp Placeholder cho thư mục rỗng
+            if (name.endsWith(".emptyFolderPlaceholder")) {
+                // Nếu là folder rỗng, tên folder chính là phần prefix cha của placeholder này
+                continue; 
             }
-            String relative = name.substring(pathPrefix.length());
-            if (relative.isEmpty()) {
-                continue;
-            }
+
+            // Lọc theo yêu cầu người dùng
             if (foldersOnly) {
-                int slashIndex = relative.indexOf('/');
-                if (slashIndex >= 0) {
-                    result.add(relative.substring(0, slashIndex));
-                } else if (!relative.contains(".")) {
-                    result.add(relative);
+                if (isFolder) {
+                    result.add(name);
                 }
             } else {
-                if (!relative.contains("/")) {
-                    result.add(relative);
+                // Lấy File (Không lấy Folder)
+                if (!isFolder) {
+                    result.add(name);
                 }
             }
         }

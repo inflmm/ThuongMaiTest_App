@@ -252,6 +252,7 @@ async function handleAdminLogin() {
     try {
         const response = await fetch(joinUrl(API_BASE_URL, '/api/auth/login'), {
             method: 'POST',
+            credentials: 'same-origin',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: new URLSearchParams({
                 'username': username,

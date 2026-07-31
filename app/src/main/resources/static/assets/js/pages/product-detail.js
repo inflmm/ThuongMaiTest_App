@@ -62,32 +62,43 @@ const overlayBtnNext = document.getElementById('overlay-btn-next');
 
 // --- 1. Sửa hàm renderGallery để đảm bảo click hoạt động ---
 function renderGallery(product) {
-    const masterFiles = product.masterFiles || [];
-    const folderPath = product.image_folder_path;
-    //console.log("Render Gallery với masterFiles:", masterFiles, "và folderPath:", folderPath);
+    const variantImages = Array.isArray(product.images) ? product.images : [];
+    const masterImages = variantImages.filter((image) => image && image.variant === 'large');
+    const thumbnailImages = variantImages.filter((image) => image && image.variant === 'thumbnail');
 
-    // Render Thumbnail
-    thumbContainer.innerHTML = masterFiles.map((fileName, index) => {
-        const compactFile = fileName.replace('_master.webp', '_compact.webp');
-        const compactPath = joinUrl(API_BASE_URL, `${folderPath}/compact/${compactFile}`);
-        return `
+    if (masterImages.length > 0) {
+        thumbContainer.innerHTML = thumbnailImages.length > 0 ? thumbnailImages.map((image, index) => `
             <div class="thumb-item ${index === 0 ? 'active' : ''}" onclick="scrollToMaster(${index}, this)">
-                <img src="${compactPath}">
-            </div>`;
-    }).join('');
+                <img src="${image.publicUrl || ''}">
+            </div>`).join('') : '';
 
-    // Render Master (Click để mở Overlay)
-    masterContainer.innerHTML = masterFiles.map((fileName, index) => {
-        const compactFile = fileName.replace('_master.webp', '_grande.webp');
-        const fullPath = joinUrl(API_BASE_URL, `${folderPath}/grande/${compactFile}`);
-        return `<img src="${fullPath}" class="master-item" id="master-img-${index}" 
-        onclick="openOverlay(${index})"
-        onmousedown="movedThumb = false;">`;
-    }).join('');
+        masterContainer.innerHTML = masterImages.map((image, index) => `
+            <img src="${image.publicUrl || ''}" class="master-item" id="master-img-${index}" 
+            onclick="openOverlay(${index})"
+            onmousedown="movedThumb = false;">`).join('');
+    } else {
+        const masterFiles = product.masterFiles || [];
+        const folderPath = product.image_folder_path;
 
+        thumbContainer.innerHTML = masterFiles.map((fileName, index) => {
+            const compactFile = fileName.replace('_master.webp', '_compact.webp');
+            const compactPath = joinUrl(API_BASE_URL, `${folderPath}/compact/${compactFile}`);
+            return `
+                <div class="thumb-item ${index === 0 ? 'active' : ''}" onclick="scrollToMaster(${index}, this)">
+                    <img src="${compactPath}">
+                </div>`;
+        }).join('');
 
-    
-    initInertiaDrag(thumbContainer); // Kích hoạt kéo mượt cho Thumbnail
+        masterContainer.innerHTML = masterFiles.map((fileName, index) => {
+            const compactFile = fileName.replace('_master.webp', '_grande.webp');
+            const fullPath = joinUrl(API_BASE_URL, `${folderPath}/grande/${compactFile}`);
+            return `<img src="${fullPath}" class="master-item" id="master-img-${index}" 
+            onclick="openOverlay(${index})"
+            onmousedown="movedThumb = false;">`;
+        }).join('');
+    }
+
+    initInertiaDrag(thumbContainer);
 }
 
 // --- LOGIC OVERLAY ---

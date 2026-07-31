@@ -30,22 +30,21 @@ public class AdminImageController {
     public ResponseEntity<?> uploadProductImage(
             @RequestParam("files") MultipartFile[] files,
             @RequestParam(value = "folder", required = false) String selectedFolder,
-            @RequestParam("productSlug") String productSlug,
-            @RequestParam(value = "format", defaultValue = "jpg") String format) { // Bổ sung param format
+            @RequestParam(value = "format", defaultValue = "webp") String format,
+            @RequestParam(value = "quality", defaultValue = "85") Integer quality,
+            @RequestParam(value = "resizeMode", defaultValue = "all4") String resizeMode,
+            @RequestParam(value = "variant", required = false) String variant,
+            @RequestParam(value = "customWidth", required = false) Integer customWidth,
+            @RequestParam(value = "customHeight", required = false) Integer customHeight,
+            @RequestParam(value = "namingMode", required = false) String namingMode,
+            @RequestParam(value = "prefix", required = false) String prefix,
+            @RequestParam(value = "suffixStyle", required = false) String suffixStyle) {
         try {
-            List<String> baseNames;
-            
-            // Kiểm tra loại định dạng người dùng chọn từ giao diện Frontend
-            if ("webp".equalsIgnoreCase(format)) {
-                baseNames = imageUploadService.uploadAndProcessProductImagesWebp(files, selectedFolder, productSlug);
-            } else {
-                // Mặc định hoặc khi chọn JPG
-                baseNames = imageUploadService.uploadAndProcessProductImagesJpg(files, selectedFolder, productSlug);
-            }
-            
+            List<String> baseNames = imageUploadService.uploadAndProcessImages(files, selectedFolder, format, quality, resizeMode, variant, customWidth, customHeight, namingMode, prefix, suffixStyle);
+
             return ResponseEntity.ok(Map.of(
                 "success", true,
-                "message", "Upload và xử lý ảnh sản phẩm (" + format.toUpperCase() + ") thành công!",
+                "message", "Upload và xử lý ảnh thành công!",
                 "data", baseNames
             ));
         } catch (IllegalArgumentException e) {
@@ -64,7 +63,7 @@ public class AdminImageController {
     @PostMapping("/raw-upload")
     public ResponseEntity<?> uploadRawImage(
             @RequestParam("files") MultipartFile[] files,
-            @RequestParam("folder") String selectedFolder) {
+            @RequestParam(value = "folder", required = false) String selectedFolder) {
         try {
             List<String> fileNames = imageUploadService.uploadRawImages(files, selectedFolder);
             return ResponseEntity.ok(Map.of(

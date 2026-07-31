@@ -47,6 +47,13 @@ public class Product extends BaseEntity {
     @ManyToMany(mappedBy = "products")
     private List<Collection> collections = new ArrayList<>();
 
+    // Danh sách ảnh sản phẩm theo entity chuẩn.
+    // Dùng cho admin/product flow mới, trong khi image_folder_path vẫn giữ vai trò
+    // cho việc tìm kiếm và duyệt ảnh theo folder hiện có.
+    @JsonIgnore
+    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ProductImage> images = new ArrayList<>();
+
     private Boolean deleted = false;
 
     // Constructors
@@ -122,5 +129,12 @@ public class Product extends BaseEntity {
 		this.collections = collections;
 	}
 
+	public List<ProductImage> getImages() {
+		return images;
+	}
+
+	public void setImages(List<ProductImage> images) {
+		this.images = images;
+	}
 
 }

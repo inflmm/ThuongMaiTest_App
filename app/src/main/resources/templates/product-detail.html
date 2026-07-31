@@ -69,8 +69,10 @@
                         </div>
 
                         <div id="master-image-container" class="master-slider">
-                            <img th:each="imgFile, iterStat : ${product.masterFiles}" class="master-item"
-                                th:src="@{/{image_folder_path}/grande/{file}(image_folder_path=${product.image_folder_path}, file=${#strings.contains(imgFile, '_master.') ? #strings.replace(imgFile, '_master.webp', '_grande.webp') : imgFile})}"
+                            <img th:each="image, iterStat : ${product.images}"
+                                th:if="${image.variant == 'large'}"
+                                class="master-item"
+                                th:src="${image.publicUrl}"
                                 th:alt="${product.name} + ' - Ảnh lớn ' + ${iterStat.count}"
                                 th:id="${iterStat.index}">
                         </div>
@@ -86,10 +88,11 @@
                         </button>
 
                         <picture id="thumbnail-list" class="thumbnail-slider">
-                            <div th:each="imgFile, iterStat : ${product.masterFiles}"
+                            <div th:each="image, iterStat : ${product.images}"
+                                th:if="${image.variant == 'thumbnail'}"
                                 th:classappend="${iterStat.index == 0} ? 'active' : ''"
                                 th:data-index="${iterStat.index}" class="thumb-item">
-                                <img th:src="@{/{image_folder_path}/compact/{file}(image_folder_path=${product.image_folder_path}, file=${#strings.contains(imgFile, '_master.') ? #strings.replace(imgFile, '_master.webp', '_compact.webp') : imgFile})}"
+                                <img th:src="${image.publicUrl}"
                                     th:alt="${product.name} + ' - Ảnh nhỏ thu gọn ' + ${iterStat.count}">
                             </div>
                         </picture>
@@ -153,7 +156,8 @@
             price: [[${ product.price }]],
             longDescription: [[${ product.longDescription }]],
             image_folder_path: [[${ product.image_folder_path }]],
-            masterFiles: [[${ product.masterFiles }]] // Mảng chuỗi: ["prod_1_..webp", "prod_2_..webp"]
+            masterFiles: [[${ product.masterFiles }]], // Mảng chuỗi: ["prod_1_..webp", "prod_2_..webp"]
+            images: [[${ product.images }]]
         };
     </script>
 

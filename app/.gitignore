@@ -6,6 +6,9 @@ target/
 
 Log.txt
 .env
+plan.md
+session.txt
+cookies.txt
 
 ### STS ###
 .apt_generated

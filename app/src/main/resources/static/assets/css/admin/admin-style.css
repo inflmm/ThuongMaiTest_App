@@ -1005,6 +1005,7 @@ th { background: #f8f9fa; color: #666; font-weight: 600; }
     gap: 16px;
     padding: 5px;
     color: var(--text-main);
+    width: 49%;
 }
 
 .upload-form-group {
@@ -1013,10 +1014,21 @@ th { background: #f8f9fa; color: #666; font-weight: 600; }
     gap: 6px;
 }
 
+.upload-form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 5%;
+}
+
+.upload-form-grid .upload-form-group {
+    min-width: 0;
+}
+
 .upload-label {
     font-size: 13px;
     font-weight: bold;
     color: #444;
+    padding: 5px;
 }
 
 .upload-required {
@@ -1171,7 +1183,6 @@ th { background: #f8f9fa; color: #666; font-weight: 600; }
     border: 1px solid #e2e8f0;
     border-radius: 4px;
     background: #fff;
-    max-height: 180px;
     overflow-y: auto;
 }
 
@@ -1251,4 +1262,35 @@ th { background: #f8f9fa; color: #666; font-weight: 600; }
 /*đảm bảo upload nằm modal ảnh*/
 #upload-image-modal {
     z-index: 1110 !important;
+}
+.upload-overlay-container {
+    display: flex;
+    gap: 12px;
+}
+
+.upload-preview-divider {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1;
+}
+
+#upload-image-modal .modal-dialog {
+    max-width: 980px;
+    width: min(980px, calc(100vw - 24px));
+}
+
+#upload-image-modal .modal-content {
+    width: 1300px;
+    height: 760px; 
+}
+
+#upload-image-modal .modal-body {
+    overflow-y: auto;
+}
+
+@media (max-width: 768px) {
+    .upload-form-grid {
+        grid-template-columns: 1fr;
+    }
 }

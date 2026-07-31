@@ -128,8 +128,11 @@ async function loadFolders(forceRefresh = false, type = 'articles') {
     }
 
     try {
-        const response = await fetch(joinUrl(API_BASE_URL, apiUrl));
-        const payload = await response.json();
+        const response = await fetch(joinUrl(API_BASE_URL, apiUrl), { credentials: 'same-origin' });
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        const payload = await response.json().catch(() => []);
         const paths = Array.isArray(payload) ? payload : [];
         folderDataCache[type] = buildTree(paths); // Lưu vào cache
         renderTreeUI(folderDataCache[type], type);
@@ -315,9 +318,9 @@ function renderPagination(data, type = 'normal') {
     const containerId = type === 'advanced' ? 'adv-search-pagination' : 'blog-pagination'; // nếu là advanced lấy adv-search-pagination
     const container = document.getElementById(containerId);
 
-    const loadFunc = (type === 'advanced') ? 'executeAdvancedSearch' : 
-                 (type === 'search') ? 'handleBlogSearch' : 'loadBlogs';
-    
+    const loadFunc = (type === 'advanced') ? 'executeAdvancedSearch' :
+        (type === 'search') ? 'handleBlogSearch' : 'loadBlogs';
+
     if (!container) return;
 
     const { page, _links } = data;
@@ -590,11 +593,10 @@ async function validateAndSaveBlog(blogId) {
         return false;
     }
 
-    // 2. Chuẩn hóa Thumbnail (Phải bắt đầu bằng /images/)
+    // 2. Chuẩn hóa Thumbnail (cho phép cả URL trực tiếp và đường dẫn nội bộ /images/...)
     if (thumbnail) {
-        // Nếu path chưa có /images ở đầu thì thêm vào
-        if (!thumbnail.startsWith('/images/')) {
-            // Loại bỏ dấu / ở đầu nếu có để tránh double slash //images
+        // Nếu là URL trực tiếp (http/https) thì giữ nguyên; nếu là đường dẫn nội bộ thì chuẩn hóa thành /images/...
+        if (!/^https?:\/\//i.test(thumbnail) && !thumbnail.startsWith('/images/')) {
             const cleanPath = thumbnail.startsWith('/') ? thumbnail.substring(1) : thumbnail;
             thumbnail = '/images/' + cleanPath;
         }
@@ -755,13 +757,15 @@ function openCreateBlogModal() {
 let quill; // Biến toàn cục để thao tác
 // Biến toàn cục hoặc biến trong module để giữ vị trí con trỏ
 let lastQuillRange = null;
+// Ghi nhớ URL ảnh đang được chọn trong image explorer để confirm callback có thể trả về URL công khai trực tiếp.
+let selectedExplorerImageUrl = '';
 // 2. Định nghĩa hàm đăng ký Format (Để tránh lỗi Quill undefined)
 function registerQuillFormats() {
     // Kiểm tra xem class Quill của thư viện đã sẵn sàng chưa
-    if (typeof Quill === 'undefined'){
+    if (typeof Quill === 'undefined') {
         //console.log('Quill is undefined');
         return;
-    } 
+    }
 
     const QuillImage = Quill.import('formats/image');
     class BlogImage extends QuillImage {
@@ -848,11 +852,11 @@ function insertImageToEditor(path) {
     // thì mặc định chèn vào cuối văn bản
     const range = lastQuillRange || { index: quill.getLength() };
 
-    // Chuẩn hóa đường dẫn đảm bảo có /images/
-    const fullUrl = '/' + path; // Về sau nếu có dùng server để host ảnh thì cần kết hợp thêm đường dẫn + path
+    // The explorer should pass the actual public URL (Supabase CDN) so Quill inserts a direct image URL.
+    const normalizedUrl = path && /^(https?:)?\/\//i.test(path) ? path : (path ? (path.startsWith('/') ? path : '/' + path) : '');
 
     // Chèn ảnh vào đúng vị trí đã lưu
-    quill.insertEmbed(range.index, 'image', fullUrl);
+    quill.insertEmbed(range.index, 'image', normalizedUrl);
 
     // Di chuyển con trỏ xuống sau ảnh vừa chèn
     quill.setSelection(range.index + 1);
@@ -910,12 +914,15 @@ async function openImageExplorer(onSelectCallback) {
         width: '95%',
         confirmText: 'Chèn ảnh này',
         onConfirm: () => {
-            // Lấy đường dẫn từ chính cái ID bạn yêu cầu
+            // Prefer the chosen image's direct public URL; fall back to the display path if no URL was selected.
             const pathDisplay = document.getElementById('image-explorer-link');
             let finalPath = pathDisplay ? pathDisplay.innerText : '';
-
-            // Chuẩn hóa: biến "images / folder / file.jpg" thành "images/folder/file.jpg"
             finalPath = finalPath.replace(/\s\/\s/g, '/').trim();
+
+            if (selectedExplorerImageUrl && onSelectCallback) {
+                onSelectCallback(selectedExplorerImageUrl);
+                return true;
+            }
 
             if (finalPath && finalPath !== 'images' && onSelectCallback) {
                 onSelectCallback(finalPath);
@@ -948,10 +955,12 @@ async function loadImagesInFolder(path) {
     mainArea.innerHTML = '<div class="p-3">Đang tải...</div>';
 
     try {
+        // The backend now returns each image entry with a publicUrl, so the explorer can render the CDN URL directly.
         const url = joinUrl(API_BASE_URL, `/api/admin/folders/images/files?path=${encodeURIComponent(normalizedPath)}`);
         const response = await fetch(url);
         const files = await response.json();
 
+        selectedExplorerImageUrl = '';
         updateImageExplorerPath(normalizedPath);
 
         if (!files || files.length === 0) {
@@ -967,10 +976,12 @@ async function loadImagesInFolder(path) {
         mainArea.innerHTML = files.map(file => {
             const fileName = file.name || file;
             const imagePath = normalizedPath ? `/${normalizedPath}/${fileName}` : `/${fileName}`;
-            const fullUrl = joinUrl(API_BASE_URL, 'images' + imagePath.replace(/\/+/g, '/'));
+            // Prefer the direct public URL from the backend; fall back to the legacy app route only if needed.
+            const directUrl = file.publicUrl || file.url || '';
+            const fullUrl = directUrl || joinUrl(API_BASE_URL, 'images' + imagePath.replace(/\/+/g, '/'));
 
             return `
-                <div class="img-item-card" onclick="previewImage('${imagePath}', this)">
+                <div class="img-item-card" data-public-url="${directUrl}" onclick="previewImage('${imagePath}', this)">
                     <img class="exp-image-item" src="${fullUrl}">
                     <div class="exp-image-text">${fileName}</div>
                 </div>
@@ -997,8 +1008,9 @@ function previewImage(path, element) {
     // 2. Cập nhật đường dẫn lên Sub-header
     updateImageExplorerPath(path);
 
-    // 3. Render preview
-    const fullUrl = joinUrl(API_BASE_URL, 'images' + path);
+    // 3. Render preview using the direct public URL that the backend already provided for the selected image.
+    const fullUrl = element.dataset.publicUrl || '';
+    selectedExplorerImageUrl = fullUrl;
     const previewBox = document.getElementById('preview-box');
 
     previewBox.innerHTML = `
@@ -1025,9 +1037,12 @@ function setBlogThumbnail(path) {
     const previewWrap = document.getElementById('blog-thumb-preview-wrap');
     const previewImg = document.getElementById('blog-thumb-preview-img');
 
-    if (input) input.value = '/' + path;
+    // Accept either a direct URL or a local /images/... path, then use the same value for preview.
+    const normalizedPath = path && /^(https?:)?\/\//i.test(path) ? path : (path ? (path.startsWith('/') ? path : '/' + path) : '');
+
+    if (input) input.value = normalizedPath;
     if (previewImg) {
-        previewImg.src = joinUrl(API_BASE_URL, path); // path đã có images/ từ image-explorer-link
+        previewImg.src = normalizedPath;
         previewWrap.style.display = 'block';
     }
 }
@@ -1163,17 +1178,17 @@ async function openBlogModal(blogId = null) {
 async function handleBlogSearch(page = 0) {
     const input = document.getElementById('blog-search-input');
     const keyword = input.value.trim();
-    
+
     // Nếu không nhập gì, load lại folder hiện tại như bình thường
     if (!keyword) {
-        loadBlogs(0); 
+        loadBlogs(0);
         return;
     }
 
     try {
         AdminApp.showLoading(true);
         const params = new URLSearchParams();
-        
+
         // Kiểm tra nếu keyword là số thì tìm theo ID, ngược lại tìm theo Title
         if (!isNaN(keyword)) {
             params.append('id', keyword);
@@ -1197,7 +1212,7 @@ async function handleBlogSearch(page = 0) {
         renderPagination(data, 'search');
 
         // Cập nhật tiêu đề bảng để người dùng biết đang xem kết quả tìm kiếm
-        document.getElementById('table-folder-title').innerText = 
+        document.getElementById('table-folder-title').innerText =
             `Kết quả tìm kiếm cho "${keyword}" trong ${currentSelectedFolder || 'Tất cả'}`;
 
     } catch (error) {
@@ -1299,7 +1314,7 @@ async function executeAdvancedSearch(page = 0) {
     if (title) params.append('title', title);
     if (from) params.append('fromDate', from);
     if (to) params.append('toDate', to);
-    
+
     params.append('page', page);
     params.append('size', 10);
 
@@ -1310,7 +1325,7 @@ async function executeAdvancedSearch(page = 0) {
         // Tái sử dụng hàm render đã chỉnh sửa ở bước trước
         renderBlogTable(data.content, 'adv-search-results-body');
         renderPagination(data, 'advanced');
-        
+
     } catch (error) {
         console.error("Lỗi search:", error);
     }
@@ -1339,66 +1354,125 @@ function openUploadOverlay() {
         id: 'upload-image-modal',
         title: '<i class="fa-solid fa-cloud-arrow-up"></i> Tải ảnh mới lên hệ thống',
         bodyHTML: `
+        <div class="upload-overlay-container">
             <div class="upload-overlay-wrapper">
-                <div class="upload-form-group">
-                    <label class="upload-label">Thư mục đích hiện tại:</label>
-                    <div class="upload-folder-display">
-                        <i class="fa-solid fa-folder"></i> <span>${displayFolder}</span>
-                    </div>
-                </div>
-
-                <div class="upload-toggle-container">
-                    <label class="upload-label-inline">Chế độ Upload:</label>
-                    <div class="upload-switch-wrapper">
-                        <label class="upload-switch">
-                            <input type="checkbox" id="upload-mode-toggle" onchange="toggleUploadMode(this.checked)">
-                            <span class="upload-slider"></span>
-                        </label>
-                        <span id="toggle-label" class="upload-toggle-text mode-raw">Ảnh thông thường (Giữ nguyên gốc)</span>
-                    </div>
-                </div>
-
-                <div id="product-slug-wrapper" class="upload-form-group" style="display: none;">
+                
                     <div class="upload-form-group">
-                        <label class="upload-label">Thư mục lưu ảnh:</label>
-                        <div class="upload-folder-display"> 
-                            <i class="fa-solid fa-folder"></i> <span> ${displayFolder}/(slug sản phẩm)/(master/grande/compact)/ảnh upload </span>
+                        <label class="upload-label">Thư mục đích hiện tại:</label>
+                        <div class="upload-folder-display">
+                            <i class="fa-solid fa-folder"></i> <span>${displayFolder}</span>
                         </div>
                     </div>
-                    
-                    <div class="upload-form-group">
-                        <label class="upload-label">Slug Sản phẩm<span class="upload-required">*</span>:</label>
-                        <input type="text" id="upload-product-slug" class="upload-input-text" placeholder="Ví dụ: ban-phim-co-gvn">
+
+                    <div class="upload-toggle-container">
+                        <label class="upload-label-inline">Chế độ upload:</label>
+                        <div class="upload-switch-wrapper">
+                            <label class="upload-switch">
+                                <input type="checkbox" id="upload-mode-toggle" onchange="toggleUploadMode(this.checked)">
+                                <span class="upload-slider"></span>
+                            </label>
+                            <span id="toggle-label" class="upload-toggle-text mode-raw">Ảnh gốc (không resize / không chuyển định dạng)</span>
+                        </div>
                     </div>
 
-                    <div class="filter-group" style="margin-top: 12px;">
-                        <label style="font-weight: 600; font-size: 13px; color: #475569;">Định dạng ảnh xuất ra:</label>
-                        <select id="upload-image-format-select" style="width: 100%; padding: 8px 12px; margin-top: 6px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; background-color: #fff; outline: none; cursor: pointer;">
-                            <option value="webp">Định dạng WEBP (Google CLI cwebp - dung lượng nhẹ hơn thumbnailator)</option>
-                            <option value="jpg">Định dạng JPG (Thumbnailator - mặc định)</option>
-                        </select>
-                        <div id="webp-note-helper" style="color: #d97706; font-size: 11px; margin-top: 6px; line-height: 1.4;">
-                            <i class="fa-solid fa-triangle-exclamation"></i> <strong>Lưu ý:</strong> Chế độ WEBP yêu cầu máy chủ chạy API phải cài đặt sẵn bộ công cụ libwebp của Google và cấu hình biến môi trường Path.
+                    <div id="upload-advanced-controls" style="display: none;">
+                        <div class="upload-form-grid">
+                            <div class="upload-form-group">
+                                <label class="upload-label">Định dạng đầu ra:</label>
+                                <select id="upload-image-format-select" style="width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; background-color: #fff; outline: none; cursor: pointer;">
+                                    <option value="webp">WebP (mặc định)</option>
+                                    <option value="jpg">JPG</option>
+                                </select>
+                            </div>
+
+                            <div class="upload-form-group">
+                                <label class="upload-label">Chất lượng nén:</label>
+                                <input type="range" id="upload-quality-slider" min="50" max="100" value="80" style="width: 100%; margin-top: 4px;">
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-top: 6px; font-size: 12px; color: #64748b;">
+                                    <span>50%</span>
+                                    <span id="upload-quality-value" style="font-weight: 600; color: #0f172a;">80%</span>
+                                    <span>100%</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="upload-form-group">
+                            <label class="upload-label">Cách tạo ảnh:</label>
+                            <select id="upload-resize-mode-select" style="width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; background-color: #fff; outline: none; cursor: pointer;">
+                                <option value="all4">Tạo 4 kích thước chuẩn (large, medium, compact, thumbnail)</option>
+                                <option value="specific">Tạo 1 kích thước cụ thể</option>
+                            </select>
+                        </div>
+
+                        <div class="upload-form-group">
+                            <label class="upload-label">Kích thước mục tiêu:</label>
+                            <select id="upload-variant-select" style="width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; background-color: #fff; outline: none; cursor: pointer;">
+                                <option value="large">Large</option>
+                                <option value="medium">Medium</option>
+                                <option value="compact">Compact</option>
+                                <option value="thumbnail">Thumbnail</option>
+                                <option value="custom">Custom</option>
+                            </select>
+                        </div>
+
+                        <div id="upload-custom-size-wrapper" class="upload-form-grid" style="display: none; max-width: 97%;">
+                            <div class="upload-form-group">
+                                <label class="upload-label">Chiều rộng (px):</label>
+                                <input type="number" id="upload-custom-width" class="upload-input-text" style="width: 100%;" min="1" value="1200">
+                            </div>
+                            <div class="upload-form-group">
+                                <label class="upload-label">Chiều cao (px):</label>
+                                <input type="number" id="upload-custom-height" class="upload-input-text" style="width: 100%;" min="1" value="1200">
+                            </div>
+                        </div>
+
+                        <div class="upload-form-group">
+                            <label class="upload-label">Cách đặt tên:</label>
+                            <select id="upload-naming-mode-select" style="width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; background-color: #fff; outline: none; cursor: pointer;">
+                                <option value="original">Giữ tên gốc</option>
+                                <option value="random">Tạo prefix ngẫu nhiên</option>
+                                <option value="manual">Dùng prefix tự nhập</option>
+                            </select>
+                        </div>
+
+                        <div id="upload-prefix-wrapper" class="upload-form-group" style="display: none;">
+                            <label class="upload-label">Prefix tùy chỉnh:</label>
+                            <input type="text" id="upload-prefix-input" class="upload-input-text" style="width: 97%;" placeholder="Ví dụ: abcxyz">
+                        </div>
+
+                        <div class="upload-form-group">
+                            <label class="upload-label">Hậu tố:</label>
+                            <select id="upload-suffix-style-select" style="width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; background-color: #fff; outline: none; cursor: pointer;">
+                                <option value="size">Thêm hậu tố kích thước (_large, _custom...)</option>
+                                <option value="none">Không thêm hậu tố</option>
+                            </select>
+                        </div>
+
+                        <div id="webp-note-helper" style="color: #d97706; font-size: 11px; line-height: 1.4;">
+                            <i class="fa-solid fa-triangle-exclamation"></i> <strong>Lưu ý:</strong> WebP là định dạng mặc định và phù hợp cho ưu tiên dung lượng. Nếu máy chủ chưa cài libwebp, có thể chọn JPG.
                         </div>
                     </div>
                 </div>
 
-                <div class="upload-form-group">
-                    <label class="upload-label">Chọn file từ máy tính:</label>
-                    <div class="upload-file-zone">
-                        <input type="file" id="modal-file-input" multiple accept="image/webp, image/jpeg, image/png" onchange="handleModalFileSelect(this)">
-                        <label for="modal-file-input" class="upload-file-trigger">
-                            <i class="fa-solid fa-images"></i> Bấm để chọn hoặc kéo thả nhiều ảnh vào đây...
-                        </label>
+                <div class="upload-preview-divider">
+                    <div class="upload-form-group">
+                        <label class="upload-label">Chọn file từ máy tính:</label>
+                        <div class="upload-file-zone">
+                            <input type="file" id="modal-file-input" multiple accept="image/webp, image/jpeg, image/png" onchange="handleModalFileSelect(this)">
+                            <label for="modal-file-input" class="upload-file-trigger">
+                                <i class="fa-solid fa-images"></i> Bấm để chọn hoặc kéo thả nhiều ảnh vào đây...
+                            </label>
+                        </div>
                     </div>
-                </div>
 
-                <div class="upload-preview-wrapper">
-                    <div id="upload-preview-list" class="upload-preview-list">
-                        <span class="upload-empty-text" id="no-file-text">Chưa có tệp tin nào được chọn</span>
+                    <div class="upload-preview-wrapper">
+                        <div id="upload-preview-list" class="upload-preview-list">
+                            <span class="upload-empty-text" id="no-file-text">Chưa có tệp tin nào được chọn</span>
+                        </div>
                     </div>
                 </div>
             </div>
+            
         `,
         confirmText: 'Bắt đầu Tải lên',
         onConfirm: async () => {
@@ -1410,32 +1484,59 @@ function openUploadOverlay() {
     selectedUploadFiles = [];
 
     // Đặt đoạn này ngay sau khi Modal đã được chèn vào DOM (khi mở Modal)
-    document.getElementById('upload-image-format-select')?.addEventListener('change', function(e) {
+    document.getElementById('upload-image-format-select')?.addEventListener('change', function (e) {
         const helper = document.getElementById('webp-note-helper');
         if (helper) {
             helper.style.display = (e.target.value === 'webp') ? 'block' : 'none';
         }
     });
+
+    document.getElementById('upload-quality-slider')?.addEventListener('input', function (e) {
+        const valueLabel = document.getElementById('upload-quality-value');
+        if (valueLabel) {
+            valueLabel.textContent = `${e.target.value}%`;
+        }
+    });
+
+    document.getElementById('upload-resize-mode-select')?.addEventListener('change', function (e) {
+        const variantSelect = document.getElementById('upload-variant-select');
+        const customWrapper = document.getElementById('upload-custom-size-wrapper');
+        const isSpecific = e.target.value === 'specific';
+        if (variantSelect) {
+            variantSelect.disabled = !isSpecific;
+        }
+        if (customWrapper) {
+            customWrapper.style.display = (isSpecific && variantSelect?.value === 'custom') ? 'grid' : 'none';
+        }
+    });
+
+    document.getElementById('upload-variant-select')?.addEventListener('change', function (e) {
+        const customWrapper = document.getElementById('upload-custom-size-wrapper');
+        if (customWrapper) {
+            customWrapper.style.display = (e.target.value === 'custom') ? 'grid' : 'none';
+        }
+    });
+
+    document.getElementById('upload-naming-mode-select')?.addEventListener('change', function (e) {
+        const prefixWrapper = document.getElementById('upload-prefix-wrapper');
+        if (prefixWrapper) {
+            prefixWrapper.style.display = (e.target.value === 'manual') ? 'block' : 'none';
+        }
+    });
 }
 
-// 3. ĐIỀU KHIỂN CHUYỂN CHẾ ĐỘ (TOGGLE MƯỢT MÀ BẰNG JS)
-function toggleUploadMode(isProductMode) {
+function toggleUploadMode(isResizeMode) {
     const label = document.getElementById('toggle-label');
-    const slugWrapper = document.getElementById('product-slug-wrapper');
-    
-    if (isProductMode) {
-        label.innerText = "Ảnh Sản phẩm (Tự động resize 3 mức compact, grande và master)";
-        label.className = "upload-toggle-text mode-product";
-        slugWrapper.style.display = "block";
-        
-        // Tự động điền hộ slug nếu biến môi trường có sẵn dữ liệu sản phẩm
-        if (typeof CURRENT_PRODUCT_SLUG !== 'undefined' && CURRENT_PRODUCT_SLUG) {
-            document.getElementById('upload-product-slug').value = CURRENT_PRODUCT_SLUG;
-        }
+    const advancedControls = document.getElementById('upload-advanced-controls');
+
+    if (isResizeMode) {
+        label.innerText = 'Xử lý ảnh (resize / chuyển định dạng)';
+        label.className = 'upload-toggle-text mode-product';
+        if (advancedControls) advancedControls.style.display = 'block';
     } else {
-        label.innerText = "Ảnh thông thường (Giữ nguyên gốc)";
-        label.className = "upload-toggle-text mode-raw";
-        slugWrapper.style.display = "none";
+        label.innerText = 'Ảnh gốc (không resize / không chuyển định dạng)';
+        label.className = 'upload-toggle-text mode-raw';
+        if (advancedControls) advancedControls.style.display = 'none';
     }
 }
 
@@ -1443,16 +1544,24 @@ function toggleUploadMode(isProductMode) {
 function handleModalFileSelect(input) {
     const previewList = document.getElementById('upload-preview-list');
     const noFileText = document.getElementById('no-file-text');
-    const MAX_SIZE_MB = 10;
+    const MAX_SIZE_MB = 25;
 
     if (!input.files || input.files.length === 0) return;
     if (noFileText) noFileText.remove();
 
-    Array.from(input.files).forEach(file => {
-        // Chặn file lớn hơn 5MB bảo vệ server
+    const incomingFiles = Array.from(input.files);
+    const currentTotalBytes = selectedUploadFiles.reduce((sum, file) => sum + (file ? file.size : 0), 0);
+    const incomingBytes = incomingFiles.reduce((sum, file) => sum + file.size, 0);
+
+    if (currentTotalBytes + incomingBytes > MAX_SIZE_MB * 1024 * 1024) {
+        alert(`Tổng dung lượng vượt quá ${MAX_SIZE_MB}MB. Vui lòng chọn ít file hơn hoặc giảm kích thước ảnh.`);
+        return;
+    }
+
+    incomingFiles.forEach(file => {
         if (file.size > MAX_SIZE_MB * 1024 * 1024) {
             alert(`File "${file.name}" dung lượng quá lớn! Vui lòng chọn file dưới ${MAX_SIZE_MB}MB.`);
-            return; 
+            return;
         }
 
         selectedUploadFiles.push(file);
@@ -1485,7 +1594,7 @@ function handleModalFileSelect(input) {
 function removeSelectedFileFromUpload(index, objectUrl) {
     const row = document.getElementById(`upload-item-${index}`);
     if (row) row.remove();
-    
+
     URL.revokeObjectURL(objectUrl); // Thu hồi bộ nhớ ảnh ảo
     selectedUploadFiles[index] = null; // Đánh dấu xóa
 
@@ -1504,36 +1613,43 @@ async function executeUploadFlow() {
         return;
     }
 
-    const isProductMode = document.getElementById('upload-mode-toggle').checked;
     const formData = new FormData();
 
     finalFiles.forEach(file => {
         formData.append("files", file);
     });
 
-    // Truyền chính xác thư mục hiện tại mà không sợ bị biến đổi cấu trúc
     formData.append("folder", currentSelectedFolder ? currentSelectedFolder : "");
-    //formData.append("folder", "PCGVN");
-    
-    let targetEndpoint = "";
 
-    if (isProductMode) {
-        const productSlugInput = document.getElementById('upload-product-slug');
-        const slugValue = productSlugInput ? productSlugInput.value.trim() : "";
+    const isResizeMode = document.getElementById('upload-mode-toggle')?.checked;
+    let targetEndpoint = "/api/admin/images/raw-upload";
 
-        if (!slugValue) {
-            alert("Vui lòng điền mã Slug của sản phẩm!");
-            productSlugInput.focus();
-            return;
-        }
+    if (isResizeMode) {
+        const formatValue = document.getElementById('upload-image-format-select')?.value || 'webp';
+        const qualityValue = parseInt(document.getElementById('upload-quality-slider')?.value || '85', 10);
+        const resizeModeValue = document.getElementById('upload-resize-mode-select')?.value || 'all4';
+        const variantValue = document.getElementById('upload-variant-select')?.value || 'large';
+        const customWidthValue = parseInt(document.getElementById('upload-custom-width')?.value || '0', 10);
+        const customHeightValue = parseInt(document.getElementById('upload-custom-height')?.value || '0', 10);
+        const namingModeValue = document.getElementById('upload-naming-mode-select')?.value || 'original';
+        const prefixValue = document.getElementById('upload-prefix-input')?.value || '';
+        const suffixStyleValue = document.getElementById('upload-suffix-style-select')?.value || 'size';
 
-        const formatValue = document.getElementById('upload-image-format-select')?.value || 'jpg';
         formData.append("format", formatValue);
+        formData.append("quality", String(qualityValue));
+        formData.append("resizeMode", resizeModeValue);
+        formData.append("variant", variantValue);
+        if (variantValue === 'custom' && customWidthValue > 0) {
+            formData.append("customWidth", String(customWidthValue));
+        }
+        if (variantValue === 'custom' && customHeightValue > 0) {
+            formData.append("customHeight", String(customHeightValue));
+        }
+        formData.append("namingMode", namingModeValue);
+        formData.append("prefix", prefixValue);
+        formData.append("suffixStyle", suffixStyleValue);
 
-        formData.append("productSlug", slugValue);
         targetEndpoint = "/api/admin/images/product-upload";
-    } else {
-        targetEndpoint = "/api/admin/images/raw-upload";
     }
 
     if (typeof AdminApp.showLoading === 'function') AdminApp.showLoading(true);
@@ -1548,7 +1664,7 @@ async function executeUploadFlow() {
 
         if (response.ok && result.success) {
             alert(result.message || "Tải tài nguyên lên server thành công!");
-            
+
             // Tìm nút đóng modal dùng chung của bạn để hạ màn hình
             const closeBtn = document.querySelector('.modal-header .close') || document.querySelector('[data-dismiss="modal"]');
             if (closeBtn) closeBtn.click();

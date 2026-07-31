@@ -2,6 +2,7 @@ package com.example.demo.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -17,7 +18,7 @@ public class SecurityConfig {
 	        .csrf(csrf -> csrf.disable())
 	        .authorizeHttpRequests(auth -> auth
 	                // 1. Cho phép tất cả mọi người truy cập các file tĩnh (CSS, JS, Images)
-	                .requestMatchers("/css/**", "/js/**", "/assets/**", "/favicon.ico").permitAll()
+	                .requestMatchers("/css/**", "/js/**", "/assets/**", "/favicon.ico", "/images/**", "/articles/**").permitAll()
 	                .requestMatchers("/assets/css/admin/**", "/assets/js/admin/**").permitAll()
 
 	                // 2. Cho phép xem Trang chủ và các trang hiển thị sản phẩm
@@ -39,9 +40,14 @@ public class SecurityConfig {
 	                .anyRequest().permitAll() // Các yêu cầu khác cho phép hết để tránh lỗi 403 phát sinh
 	            )
 	        .exceptionHandling(exception -> exception
-	        	    // Nếu vào /admin mà chưa login, đá về trang login của admin thay vì homepage của khách
 	        	    .authenticationEntryPoint((request, response, authException) -> {
-	        	        if (request.getRequestURI().startsWith("/admin")) {
+	        	        String uri = request.getRequestURI();
+	        	        if (uri.startsWith("/api/")) {
+	        	            response.setStatus(HttpStatus.UNAUTHORIZED.value());
+	        	            response.setContentType("application/json;charset=UTF-8");
+	        	            response.setCharacterEncoding("UTF-8");
+	        	            response.getWriter().write("{\"message\":\"Unauthorized\"}");
+	        	        } else if (uri.startsWith("/admin")) {
 	        	            response.sendRedirect("/admin/login");
 	        	        } else {
 	        	            response.sendRedirect("/homepage");

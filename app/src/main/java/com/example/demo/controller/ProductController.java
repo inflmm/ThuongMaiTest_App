@@ -44,6 +44,9 @@ public class ProductController {
 
     @GetMapping("/slug/{slug}")
     public ResponseEntity<Product> getProductJsonBySlug(@PathVariable String slug) {
+        // Input: slug của sản phẩm.
+        // Output: entity Product đầy đủ thông tin cơ bản.
+        // Expected return: 200 OK với Product nếu tồn tại, 404 nếu không tìm thấy.
         return productService.getProductBySlug(slug)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());

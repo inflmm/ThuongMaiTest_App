@@ -3,6 +3,8 @@ package com.example.demo.dto;
 import java.util.List;
 import java.util.Map;
 
+import com.example.demo.model.ProductImage;
+
 public class ProductDetailDto {
     private Long id;
     private String slug;
@@ -13,6 +15,10 @@ public class ProductDetailDto {
     private String longDescription; // Nội dung bài viết
     private Map<String, String> specifications; // Key-Value các thông số
     private List<String> masterFiles;
+    // List này dùng để expose các ảnh sản phẩm theo dạng entity chuẩn cho view/API.
+    // Mỗi phần tử là một ProductImage, trong khi masterFiles vẫn là danh sách tên file tạm thời
+    // để giữ tương thích với flow hiện tại.
+    private List<ProductImage> images;
 
     // Constructor, Getters, Setters...
     public ProductDetailDto() {}
@@ -90,5 +96,12 @@ public class ProductDetailDto {
 		this.masterFiles = masterFiles;
 	}
 
+	public List<ProductImage> getImages() {
+		return images;
+	}
+
+	public void setImages(List<ProductImage> images) {
+		this.images = images;
+	}
 
 }

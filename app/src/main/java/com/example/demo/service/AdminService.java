@@ -26,7 +26,7 @@ public class AdminService {
         try {
             return supabaseStorageService.listObjects(root, prefix, false);
         } catch (Exception ex) {
-            return List.of();
+            throw new RuntimeException("Unable to list files from storage: " + ex.getMessage(), ex);
         }
     }
 

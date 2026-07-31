@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.example.demo.service.AdminService;
+import com.example.demo.service.ProductImageService;
 import com.example.demo.service.SupabaseStorageService.StorageRoot;
 
 @RestController
@@ -21,6 +22,9 @@ public class AdminFolderController {
 
     @Autowired
     private AdminService adminService;
+
+    @Autowired
+    private ProductImageService productImageService;
 
     @GetMapping
     public ResponseEntity<?> getFolderTree() {
@@ -58,7 +62,30 @@ public class AdminFolderController {
 
     @GetMapping("/images/files")
     public ResponseEntity<?> getFilesByFolder(@RequestParam String path) {
+        // The explorer now returns each image as {name, path, publicUrl} so the admin UI can
+        // render the actual Supabase public URL directly instead of relying on the app's /images proxy.
         List<String> files = adminService.listFiles(StorageRoot.IMAGES, path);
-        return ResponseEntity.ok(files);
+        List<java.util.Map<String, String>> payload = files.stream().map(fileName -> {
+            String normalizedName = fileName == null ? "" : fileName.replace('\\', '/').trim();
+            if (normalizedName.isBlank()) {
+                return java.util.Map.of("name", "", "path", "", "publicUrl", "");
+            }
+
+            String normalizedPrefix = (path == null ? "" : path).replace('\\', '/').trim().replaceAll("^/|/$", "");
+            String objectPath = normalizedName.startsWith("images/")
+                    ? normalizedName
+                    : (normalizedPrefix.isBlank() || normalizedName.startsWith(normalizedPrefix + "/")
+                            ? "images/" + normalizedName
+                            : "images/" + normalizedPrefix + "/" + normalizedName);
+
+            String publicUrl = productImageService.resolvePublicUrl(objectPath);
+            String displayName = normalizedName.substring(normalizedName.lastIndexOf('/') + 1);
+            return java.util.Map.of(
+                    "name", displayName,
+                    "path", normalizedName,
+                    "publicUrl", publicUrl == null ? "" : publicUrl);
+        }).toList();
+
+        return ResponseEntity.ok(payload);
     }
 }
