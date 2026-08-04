@@ -8,11 +8,14 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
 import jakarta.persistence.Lob;
 import jakarta.persistence.ManyToMany;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 
 @Entity // Đánh dấu đây là một Entity (ánh xạ tới bảng trong DB)
@@ -27,9 +30,24 @@ public class Product extends BaseEntity {
 
     private String name;
     private Double price;
+    private String sku;
+    private Integer stockQuantity = 0;
+    private Boolean available = true;
+    private Boolean visible = true;
+    private String shortDescription;
     // Ảnh chính
     private String imageUrl;
     private String image_folder_path;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_id")
+    private Category category;
+
+    @Column(length = 1000)
+    private String categoryPathIds;
+
+    @Column(length = 1000)
+    private String categoryPathSlugs;
 
     @Lob // Để lưu nội dung dài
     @JsonIgnore	// Dùng JsonIgnore để bỏ qua khi tạo file Json, để lấy thuộc tính này cần lấy thông qua dto hoặc hàm có mapping khác
@@ -86,6 +104,46 @@ public class Product extends BaseEntity {
     public Double getPrice() { return price; }
     public void setPrice(Double price) { this.price = price; }
 
+    public String getSku() {
+        return sku;
+    }
+
+    public void setSku(String sku) {
+        this.sku = sku;
+    }
+
+    public Integer getStockQuantity() {
+        return stockQuantity;
+    }
+
+    public void setStockQuantity(Integer stockQuantity) {
+        this.stockQuantity = stockQuantity;
+    }
+
+    public Boolean getAvailable() {
+        return available;
+    }
+
+    public void setAvailable(Boolean available) {
+        this.available = available;
+    }
+
+    public Boolean getVisible() {
+        return visible;
+    }
+
+    public void setVisible(Boolean visible) {
+        this.visible = visible;
+    }
+
+    public String getShortDescription() {
+        return shortDescription;
+    }
+
+    public void setShortDescription(String shortDescription) {
+        this.shortDescription = shortDescription;
+    }
+
     public String getImageUrl() {
 		return imageUrl;
 	}
@@ -93,6 +151,30 @@ public class Product extends BaseEntity {
 	public void setImageUrl(String imageUrl) {
 		this.imageUrl = imageUrl;
 	}
+
+    public Category getCategory() {
+        return category;
+    }
+
+    public void setCategory(Category category) {
+        this.category = category;
+    }
+
+    public String getCategoryPathIds() {
+        return categoryPathIds;
+    }
+
+    public void setCategoryPathIds(String categoryPathIds) {
+        this.categoryPathIds = categoryPathIds;
+    }
+
+    public String getCategoryPathSlugs() {
+        return categoryPathSlugs;
+    }
+
+    public void setCategoryPathSlugs(String categoryPathSlugs) {
+        this.categoryPathSlugs = categoryPathSlugs;
+    }
 
 	public String getImage_folder_path() {
 		return image_folder_path;

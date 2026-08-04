@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Danh mục sản phẩm</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" th:href="@{/assets/css/style.css}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <style>
+        body { background: #f6f7fb; color: #111; }
+        .filter-shell { max-width: 1280px; margin: 24px auto; padding: 24px; background: white; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,.06); }
+        .filter-grid { display: grid; grid-template-columns: 300px 1fr; gap: 24px; }
+        .tree-card, .content-card { background: #fff; border: 1px solid #e8e9ef; border-radius: 14px; padding: 20px; }
+        .tree-list { list-style: none; padding: 0; margin: 0; }
+        .tree-item { margin-bottom: 10px; }
+        .tree-link { display: flex; justify-content: space-between; align-items: center; color: #111; text-decoration: none; padding: 8px 10px; border-radius: 10px; }
+        .tree-link:hover, .tree-link.active { background: #f2f4ff; color: #1d4ed8; }
+        .tree-children { margin-left: 16px; border-left: 1px solid #e5e7eb; padding-left: 12px; margin-top: 8px; }
+        .badge { background: #eef2ff; color: #4338ca; padding: 2px 8px; border-radius: 999px; font-size: .8rem; }
+        .breadcrumb { display: flex; gap: 8px; margin-bottom: 16px; color: #6b7280; flex-wrap: wrap; }
+        .breadcrumb a { color: #2563eb; text-decoration: none; }
+        .product-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+        .product-card { border: 1px solid #eceff5; border-radius: 12px; padding: 12px; }
+        .product-card img { width: 100%; border-radius: 8px; object-fit: cover; height: 180px; }
+        @media (max-width: 900px) { .filter-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body th:attr="data-current-slug=${currentCategorySlug != null ? currentCategorySlug : ''}, data-current-path=${currentCategoryPath != null ? currentCategoryPath : ''}">
+    <div th:replace="~{fragments/layout :: topheader_fragment}"></div>
+    <div th:replace="~{fragments/layout :: header_fragment}"></div>
+    <div th:replace="~{fragments/layout :: subheader_fragment}"></div>
+
+    <div class="filter-shell">
+        <div class="breadcrumb">
+            <a th:href="@{/homepage}">Trang chủ</a>
+            <span>/</span>
+            <span th:text="${currentCategoryName != null ? currentCategoryName : 'Danh mục'}">Danh mục</span>
+        </div>
+        <div class="filter-grid">
+            <div class="tree-card">
+                <h3>Danh mục</h3>
+                <ul id="category-tree" class="tree-list"></ul>
+            </div>
+            <div class="content-card">
+                <h3 th:text="${currentCategoryName != null ? currentCategoryName : 'Tất cả danh mục'}">Tất cả danh mục</h3>
+                <p>Danh sách sản phẩm được lọc theo danh mục đang chọn và các danh mục con của nó.</p>
+                <div id="product-list" class="product-grid"></div>
+            </div>
+        </div>
+    </div>
+
+    <div th:replace="~{fragments/layout :: footer_fragment}"></div>
+
+    <script th:src="@{/assets/js/common.js}"></script>
+    <script>
+        const body = document.body;
+        const currentSlug = body.dataset.currentSlug || '';
+        const currentPath = (body.dataset.currentPath || '').replace(/^\/+|\/+$/g, '');
+
+        function normalizePath(value) {
+            return (value || '').replace(/^\/+|\/+$/g, '');
+        }
+
+        function buildCategoryUrl(node) {
+            const normalized = normalizePath(node.slugPath || node.slug || '');
+            return normalized ? `/categories/${normalized}` : '/categories';
+        }
+
+        function isActiveCategory(node) {
+            const nodePath = normalizePath(node.slugPath || node.slug || '');
+            if (!nodePath) {
+                return !currentPath;
+            }
+            if (currentPath === nodePath) {
+                return true;
+            }
+            return currentPath.startsWith(`${nodePath}/`);
+        }
+
+        async function loadCategoryTree() {
+            const tree = document.getElementById('category-tree');
+            const response = await fetch('/api/categories/storefront-tree');
+            const data = await response.json();
+            const renderNode = (node) => {
+                const item = document.createElement('li');
+                item.className = 'tree-item';
+                const link = document.createElement('a');
+                link.className = 'tree-link';
+                link.href = buildCategoryUrl(node);
+                if (isActiveCategory(node)) {
+                    link.classList.add('active');
+                }
+                link.innerHTML = `<span>${node.name}</span><span class="badge">${node.productCount ?? 0}</span>`;
+                item.appendChild(link);
+                if (node.children && node.children.length) {
+                    const childList = document.createElement('ul');
+                    childList.className = 'tree-children';
+                    node.children.forEach(child => childList.appendChild(renderNode(child)));
+                    item.appendChild(childList);
+                }
+                return item;
+            };
+            data.forEach(node => tree.appendChild(renderNode(node)));
+        }
+
+        async function loadProducts() {
+            const productList = document.getElementById('product-list');
+            const url = currentSlug ? `/api/categories/${encodeURIComponent(currentSlug)}/products` : '/api/products';
+            const response = await fetch(url);
+            const data = await response.json();
+            if (!Array.isArray(data) || !data.length) {
+                productList.innerHTML = '<div class="product-card">Chưa có sản phẩm cho danh mục này.</div>';
+                return;
+            }
+            productList.innerHTML = '';
+            data.forEach(product => {
+                const card = document.createElement('div');
+                card.className = 'product-card';
+                const image = product.imageUrl ? `<img src="${product.imageUrl}" alt="${product.name}">` : '<div style="height:180px;background:#f3f4f6;border-radius:8px;"></div>';
+                card.innerHTML = `${image}<h4>${product.name}</h4><p>${product.price != null ? Number(product.price).toLocaleString('vi-VN') + ' ₫' : 'Liên hệ'}</p><a href="/products/${product.slug}" class="tree-link">Xem chi tiết</a>`;
+                productList.appendChild(card);
+            });
+        }
+
+        Promise.all([loadCategoryTree(), loadProducts()]).catch(console.error);
+    </script>
+</body>
+</html>

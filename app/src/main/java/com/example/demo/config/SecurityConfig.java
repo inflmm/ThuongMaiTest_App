@@ -22,7 +22,7 @@ public class SecurityConfig {
 	                .requestMatchers("/assets/css/admin/**", "/assets/js/admin/**").permitAll()
 
 	                // 2. Cho phép xem Trang chủ và các trang hiển thị sản phẩm
-	                .requestMatchers("/", "/homepage", "/collections", "/collections/**", "/products/**", "/blogs/**", "/admin/login").permitAll()
+.requestMatchers("/", "/homepage", "/categories", "/categories/**", "/collection", "/collection/**", "/collections", "/collections/**", "/products/**", "/blogs/**", "/admin/login").permitAll()
 
 	                // 3. Mở khóa toàn bộ API lấy dữ liệu sản phẩm và Giỏ hàng tạm thời
 	                .requestMatchers("/api/products/**").permitAll()

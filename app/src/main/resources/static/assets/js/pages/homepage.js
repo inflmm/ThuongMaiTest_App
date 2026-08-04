@@ -128,10 +128,31 @@ function moveSlide(direction) {
     }
 }
 
+async function loadHomepageCategoryTree() {
+    const host = document.getElementById('homepage-category-tree');
+    if (!host) return;
+
+    try {
+        const response = await fetch(joinUrl(API_BASE_URL, '/api/categories/storefront-tree'));
+        if (!response.ok) throw new Error('Failed to load category tree');
+        const categories = await response.json();
+        host.innerHTML = categories.map(category => `
+            <a href="/categories/${category.slug}">
+                <span>${category.name}</span>
+                <span class="badge">${category.productCount ?? 0}</span>
+            </a>
+        `).join('');
+    } catch (error) {
+        console.error('Lỗi khi tải danh mục trang chủ:', error);
+        host.innerHTML = '<p class="text-muted">Không thể tải danh mục.</p>';
+    }
+}
+
 // Chạy hàm khi DOM đã sẵn sàng
 document.addEventListener('DOMContentLoaded', () => {
     // Chỉ chạy nếu trang có cái container chứa danh sách sản phẩm
     if (document.getElementById('product-list-container')) {
         loadProducts();
     }
+    loadHomepageCategoryTree();
 });

@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import com.example.demo.dto.ProductDetailDto;
 import com.example.demo.model.Blog;
 import com.example.demo.service.BlogService;
+import com.example.demo.service.CategoryService;
 import com.example.demo.service.ProductService;
 
 @Controller
@@ -23,6 +24,9 @@ public class WebController {
 
 	@Autowired
 	private BlogService blogService;
+
+    @Autowired
+    private CategoryService categoryService;
 
     @GetMapping("/homepage") // Đường dẫn bạn sẽ gõ trên trình duyệt
     public String getHomePage() {
@@ -67,9 +71,33 @@ public class WebController {
     	return "cart";
     }
 
-    @GetMapping("/collections")
+    @GetMapping("/categories")
     public String getCollections() {
     	return "collections";
+    }
+    // code cũ
+    @GetMapping({"/collections", "/collections/{slug1}", "/collections/{slug1}/{slug2}", "/collections/{slug1}/{slug2}/{slug3}"})
+    public String redirectLegacyCollections(@PathVariable(required = false) String slug1,
+                                           @PathVariable(required = false) String slug2,
+                                           @PathVariable(required = false) String slug3) {
+        String slug = slug3 != null ? slug3 : slug2 != null ? slug2 : slug1;
+        return slug != null ? "redirect:/categories/" + slug : "redirect:/categories";
+    }
+    // Đường dẫn trang danh sách sản phẩm theo danh mục, chỉ sử dụng controller này để xử lý các slug động, không cần tạo nhiều phương thức cho từng cấp độ slug
+    @GetMapping({"/categories/{slug1}", "/categories/{slug1}/{slug2}", "/categories/{slug1}/{slug2}/{slug3}"})
+    public String getFilterPage(@PathVariable(required = false) String slug1,
+                                @PathVariable(required = false) String slug2,
+                                @PathVariable(required = false) String slug3,
+                                Model model) {
+        String currentSlug = slug3 != null ? slug3 : slug2 != null ? slug2 : slug1;
+        if (currentSlug != null) {
+            categoryService.getCategoryBySlug(currentSlug).ifPresent(category -> {
+                model.addAttribute("currentCategoryName", category.getName());
+                model.addAttribute("currentCategorySlug", category.getSlug());
+                model.addAttribute("currentCategoryPath", categoryService.buildCategoryPathSlugs(category));
+            });
+        }
+        return "filter-page";
     }
 
  // 1. Đường dẫn trang danh sách bài viết

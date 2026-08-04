@@ -10,14 +10,16 @@ import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import com.example.demo.dto.ProductAdminDto;
 import com.example.demo.dto.ProductDetailDto;
 import com.example.demo.model.Product;
 import com.example.demo.model.ProductImage;
 import com.example.demo.model.ProductSpecification;
+import com.example.demo.repository.CategoryRepository;
 import com.example.demo.repository.ProductImageRepository;
 import com.example.demo.repository.ProductRepository;
 
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class ProductService {
@@ -25,21 +27,37 @@ public class ProductService {
     @Autowired
     private ProductRepository productRepository;
 
-    @Autowired
+    @Autowired(required = false)
     private SupabaseStorageService supabaseStorageService;
 
     @Autowired
     private ProductImageRepository productImageRepository;
 
-    @Autowired
+    @Autowired(required = false)
     private ProductImageService productImageService;
 
+    @Autowired
+    private CategoryService categoryService;
+
     public List<Product> getAllActiveProducts() {
-        return productRepository.findByDeletedFalse();
+        return productRepository.findByDeletedFalseAndVisibleTrueOrderByUpdatedTimeDesc();
+    }
+
+    @Transactional(readOnly = true)
+    public List<ProductAdminDto> getAdminProducts() {
+        return productRepository.findAllByDeletedFalseOrderByUpdatedTimeDesc().stream()
+                .map(this::toAdminDto)
+                .toList();
     }
 
     public Optional<Product> getProductBySlug(String slug) {
         return productRepository.findBySlugAndDeletedFalse(slug);
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<ProductAdminDto> getProductById(Long id) {
+        return productRepository.findByIdAndDeletedFalse(id)
+                .map(this::toAdminDto);
     }
 
     @Transactional
@@ -48,11 +66,37 @@ public class ProductService {
             product.setSlug(generateSlug(product.getName()));
         }
 
+        if (product.getAvailable() == null) {
+            product.setAvailable(true);
+        }
+        if (product.getVisible() == null) {
+            product.setVisible(true);
+        }
+        if (product.getStockQuantity() == null) {
+            product.setStockQuantity(0);
+        }
         if (product.getSpecifications() != null) {
             product.getSpecifications().forEach(spec -> spec.setProduct(product));
         }
 
-        return productRepository.save(product);
+        Product existing = product.getId() != null ? productRepository.findById(product.getId()).orElse(null) : null;
+        categoryService.populatePathData(product);
+        Product saved = productRepository.saveAndFlush(product);
+        categoryService.recalculateAllCounts();
+
+        return saved;
+    }
+
+    @Transactional
+    public Product createOrUpdateProduct(Product product) {
+        if (product.getId() != null) {
+            Product existing = productRepository.findById(product.getId()).orElseThrow(() -> new IllegalArgumentException("Product not found"));
+            product.setDeleted(existing.getDeleted());
+            product.setImages(existing.getImages());
+        } else {
+            product.setDeleted(false);
+        }
+        return saveProduct(product);
     }
 
     public void softDeleteProduct(String slug) {
@@ -60,6 +104,16 @@ public class ProductService {
         productOpt.ifPresent(product -> {
             product.setDeleted(true);
             productRepository.save(product);
+            categoryService.updateCountsForPath(product.getCategoryPathIds(), -1, product.getVisible() != null && product.getVisible(), true);
+        });
+    }
+
+    @Transactional
+    public void softDeleteProduct(Long id) {
+        productRepository.findById(id).ifPresent(product -> {
+            product.setDeleted(true);
+            productRepository.save(product);
+            categoryService.updateCountsForPath(product.getCategoryPathIds(), -1, product.getVisible() != null && product.getVisible(), true);
         });
     }
 
@@ -79,6 +133,7 @@ public class ProductService {
         return productRepository.findByIdInAndDeletedFalse(ids);
     }
 
+    @Transactional(readOnly = true)
     public Optional<ProductDetailDto> getProductDetailBySlug(String slug) {
         return productRepository.findBySlugAndDeletedFalse(slug)
                 .map(p -> {
@@ -94,6 +149,30 @@ public class ProductService {
                     dto.setImages(getProductImages(p));
                     return dto;
                 });
+    }
+
+    private ProductAdminDto toAdminDto(Product product) {
+        ProductAdminDto dto = new ProductAdminDto();
+        dto.setId(product.getId());
+        dto.setSlug(product.getSlug());
+        dto.setName(product.getName());
+        dto.setSku(product.getSku());
+        dto.setPrice(product.getPrice());
+        dto.setStockQuantity(product.getStockQuantity());
+        dto.setAvailable(product.getAvailable());
+        dto.setVisible(product.getVisible());
+        dto.setShortDescription(product.getShortDescription());
+        dto.setImageUrl(product.getImageUrl());
+        dto.setImage_folder_path(product.getImage_folder_path());
+        if (product.getCategory() != null) {
+            ProductAdminDto.CategoryRefDto categoryRef = new ProductAdminDto.CategoryRefDto();
+            categoryRef.setId(product.getCategory().getId());
+            categoryRef.setName(product.getCategory().getName());
+            categoryRef.setSlug(product.getCategory().getSlug());
+            categoryRef.setLevel(product.getCategory().getLevel());
+            dto.setCategory(categoryRef);
+        }
+        return dto;
     }
 
     private ProductDetailDto getProductDetailDto(Product p) {
@@ -118,6 +197,10 @@ public class ProductService {
 
     public List<String> getMasterImages(String folderPath) {
         if (folderPath == null || folderPath.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        if (supabaseStorageService == null) {
             return new ArrayList<>();
         }
 
@@ -152,10 +235,14 @@ public class ProductService {
             String mediumObjectPath = product.getImage_folder_path() + "/grande/" + masterFileName.replace("_master.webp", "_grande.webp");
             String compactObjectPath = product.getImage_folder_path() + "/compact/" + masterFileName.replace("_master.webp", "_compact.webp");
 
-            newImages.add(new ProductImage(product, largeObjectPath, productImageService.resolvePublicUrl(largeObjectPath), i, "large"));
-            newImages.add(new ProductImage(product, mediumObjectPath, productImageService.resolvePublicUrl(mediumObjectPath), i, "medium"));
-            newImages.add(new ProductImage(product, compactObjectPath, productImageService.resolvePublicUrl(compactObjectPath), i, "compact"));
-            newImages.add(new ProductImage(product, compactObjectPath, productImageService.resolvePublicUrl(compactObjectPath), i, "thumbnail"));
+            String largeUrl = productImageService != null ? productImageService.resolvePublicUrl(largeObjectPath) : null;
+            String mediumUrl = productImageService != null ? productImageService.resolvePublicUrl(mediumObjectPath) : null;
+            String compactUrl = productImageService != null ? productImageService.resolvePublicUrl(compactObjectPath) : null;
+
+            newImages.add(new ProductImage(product, largeObjectPath, largeUrl, i, "large"));
+            newImages.add(new ProductImage(product, mediumObjectPath, mediumUrl, i, "medium"));
+            newImages.add(new ProductImage(product, compactObjectPath, compactUrl, i, "compact"));
+            newImages.add(new ProductImage(product, compactObjectPath, compactUrl, i, "thumbnail"));
         }
 
         if (!newImages.isEmpty()) {

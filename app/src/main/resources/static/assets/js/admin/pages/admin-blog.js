@@ -560,21 +560,29 @@ function confirmDeleteFolder() {
 }
 
 // Hàm bổ trợ tạo slug
-function initSlugAutoGenerate() {
-    const titleInput = document.getElementById('blog-title');
-    const slugInput = document.getElementById('blog-slug');
+function initSlugAutoGenerate(titleFieldId = 'blog-title', slugFieldId = 'blog-slug') {
+    const titleInput = document.getElementById(titleFieldId);
+    const slugInput = document.getElementById(slugFieldId);
 
-    titleInput.addEventListener('input', () => {
-        const slug = titleInput.value
-            .toLowerCase()
-            .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-            .replace(/[đÐ]/g, "d")
-            .replace(/([^a-z0-9-\s])/g, '')
-            .replace(/(\s+)/g, '-')
-            .replace(/-+/g, '-')
-            .trim();
-        slugInput.value = slug;
-    });
+    if (!titleInput || !slugInput) return;
+
+    const generateSlug = (value) => value
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[đÐ]/g, "d")
+        .replace(/([^a-z0-9-\s])/g, '')
+        .replace(/(\s+)/g, '-')
+        .replace(/-+/g, '-')
+        .trim();
+
+    const syncSlug = () => {
+        slugInput.value = generateSlug(titleInput.value);
+    };
+
+    titleInput.removeEventListener('input', syncSlug);
+    titleInput.addEventListener('input', syncSlug);
+    syncSlug();
 }
 
 // Kiểm tra input của blog trước khi gửi
@@ -1395,6 +1403,10 @@ function openUploadOverlay() {
                                 </div>
                             </div>
                         </div>
+                        
+                        <div id="webp-note-helper" style="color: #d97706; font-size: 11px; line-height: 1.4;">
+                            <i class="fa-solid fa-triangle-exclamation"></i> <strong>Lưu ý:</strong> WebP là định dạng mặc định và phù hợp cho trang web vì tối ưu dung lượng và chất lượng ảnh. Tuy nhiên server host không cài libwebp, có thể chọn JPG thay thế.
+                        </div>
 
                         <div class="upload-form-group">
                             <label class="upload-label">Cách tạo ảnh:</label>
@@ -1448,9 +1460,7 @@ function openUploadOverlay() {
                             </select>
                         </div>
 
-                        <div id="webp-note-helper" style="color: #d97706; font-size: 11px; line-height: 1.4;">
-                            <i class="fa-solid fa-triangle-exclamation"></i> <strong>Lưu ý:</strong> WebP là định dạng mặc định và phù hợp cho trang web vì tối ưu dung lượng và chất lượng ảnh. Tuy nhiên server host không cài libwebp, có thể chọn JPG thay thế.
-                        </div>
+                        
                     </div>
                 </div>
 

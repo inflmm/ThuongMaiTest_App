@@ -314,13 +314,18 @@ public class ImageUploadService {
     }
 
     private int resolveSizeForVariant(String variant) {
-        return switch (variant) {
-            case "large" -> 2048;
-            case "medium" -> 800;
-            case "compact" -> 400;
-            case "thumbnail" -> 160;
-            default -> 600;
-        };
+        switch (variant) {
+            case "large":
+                return 2048;
+            case "medium":
+                return 800;
+            case "compact":
+                return 400;
+            case "thumbnail":
+                return 160;
+            default:
+                return 600;
+        }
     }
 
     private void saveProductImageRecord(String objectPath, int displayOrder, String variant) {

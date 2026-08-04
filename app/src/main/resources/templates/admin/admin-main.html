@@ -17,10 +17,16 @@
                 <div class="sidebar-brand">ADMIN PANEL</div>
                 <nav class="sidebar-nav">
                     <a href="/admin/main/categories" class="nav-link" data-module="categories" title="Danh mục">
-                        <i class="fa-solid fa-folder"></i> Danh mục
+                        <i class="fa-solid fa-folder"></i> Danh mục sản phẩm
                     </a>
                     <a href="/admin/main/products" class="nav-link" data-module="products" title="Sản phẩm">
                         <i class="fa-solid fa-box"></i> Sản phẩm
+                    </a>
+                    <a href="/admin/main/collections" class="nav-link" data-module="collections" title="Bộ sưu tập">
+                        <i class="fa-solid fa-layer-group"></i> Các trang promote
+                    </a>
+                    <a href="/admin/main/custom-routes" class="nav-link" data-module="custom-routes" title="Đường dẫn">
+                        <i class="fa-solid fa-link"></i> Đường dẫn khác
                     </a>
                     <a href="/admin/main/blogs" class="nav-link" data-module="blogs" title="Blog">
                         <i class="fa-solid fa-newspaper"></i> Blog
@@ -60,6 +66,10 @@
 
     <script th:src="@{/assets/js/admin/admin-core.js}"></script>
     <script th:src="@{/assets/js/admin/pages/admin-blog.js}"></script>
+    <script th:src="@{/assets/js/admin/pages/admin-categories.js}"></script>
+    <script th:src="@{/assets/js/admin/pages/admin-products.js}"></script>
+    <script th:src="@{/assets/js/admin/pages/admin-collections.js}"></script>
+    <script th:src="@{/assets/js/admin/pages/admin-custom-routes.js}"></script>
     <!-- Include the Quill library -->
     <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
 

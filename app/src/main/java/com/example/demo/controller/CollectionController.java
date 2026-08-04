@@ -11,14 +11,14 @@ import com.example.demo.model.Collection;
 import com.example.demo.service.CollectionService;
 
 @Controller
-@RequestMapping("/collections")
+@RequestMapping("/collection")
 public class CollectionController {
 
     @Autowired
     private CollectionService collectionService;
 
     @GetMapping("/{slug}")
-    public String getCollectionPage(@PathVariable String slug, Model model) {
+    public String getCollectionPage(@PathVariable("slug") String slug, Model model) {
         Collection collection = collectionService.getCollectionBySlug(slug);
 
         if (collection == null) {

@@ -80,6 +80,38 @@ img.homepage-product-image {
 .product-price{
     font-weight: 600;
 }
+.homepage-category-tree-card {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 16px;
+    padding: 20px;
+    margin: 20px 0;
+}
+
+.homepage-category-tree {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 12px;
+    margin-top: 12px;
+}
+
+.homepage-category-tree a {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 12px;
+    border-radius: 10px;
+    color: #111827;
+    text-decoration: none;
+    background: #f8fafc;
+    border: 1px solid #e5e7eb;
+}
+
+.homepage-category-tree a:hover {
+    background: #eef2ff;
+    color: #4338ca;
+}
+
 /* --- [1. PC MODE 2] --- */
 @media (max-width: 1170px) {
     .product-card {
