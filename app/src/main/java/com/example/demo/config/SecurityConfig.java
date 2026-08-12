@@ -22,7 +22,8 @@ public class SecurityConfig {
 	                .requestMatchers("/assets/css/admin/**", "/assets/js/admin/**").permitAll()
 
 	                // 2. Cho phép xem Trang chủ và các trang hiển thị sản phẩm
-.requestMatchers("/", "/homepage", "/categories", "/categories/**", "/collection", "/collection/**", "/collections", "/collections/**", "/products/**", "/blogs/**", "/admin/login").permitAll()
+					.requestMatchers("/", "/homepage", "/categories", "/categories/**", "/collection", "/collection/**", 
+					"/collections", "/collections/**", "/products/**", "/blogs/**", "/admin/login").permitAll()
 
 	                // 3. Mở khóa toàn bộ API lấy dữ liệu sản phẩm và Giỏ hàng tạm thời
 	                .requestMatchers("/api/products/**").permitAll()
@@ -30,6 +31,7 @@ public class SecurityConfig {
 
 	                // 4. Mở khóa API Auth (Đăng ký/Đăng nhập/Đăng xuất)
 	                .requestMatchers("/api/auth/**").permitAll()
+					.requestMatchers("/api/internal/**").permitAll()
 
 	                // 5. CHẶN: Chỉ những trang này mới cần Đăng nhập
 	                .requestMatchers("/checkout/**", "/order/**", "/profile/**").authenticated()

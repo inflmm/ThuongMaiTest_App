@@ -7,8 +7,10 @@ target/
 Log.txt
 .env
 plan.md
+projectDetail.md
 session.txt
 cookies.txt
+designNote
 
 ### STS ###
 .apt_generated

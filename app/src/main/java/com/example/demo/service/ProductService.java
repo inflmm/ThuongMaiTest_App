@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 
 import com.example.demo.dto.ProductAdminDto;
 import com.example.demo.dto.ProductDetailDto;
+import com.example.demo.dto.ProductSummaryDto;
 import com.example.demo.model.Product;
 import com.example.demo.model.ProductImage;
 import com.example.demo.model.ProductSpecification;
@@ -265,4 +266,5 @@ public class ProductService {
 
         return new ArrayList<>();
     }
+
 }

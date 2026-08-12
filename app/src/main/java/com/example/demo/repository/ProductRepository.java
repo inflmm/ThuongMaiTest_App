@@ -30,4 +30,6 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     List<Product> findAllByDeletedFalseOrderByUpdatedTimeDesc();
 
     Optional<Product> findByIdAndDeletedFalse(Long id);
+    // Bộ lọc sản phẩm theo giá
+    List<Product> findByPriceLessThanEqualAndDeletedFalseAndVisibleTrue(Double maxPrice);
 }
