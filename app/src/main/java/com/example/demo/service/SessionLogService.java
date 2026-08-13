@@ -5,8 +5,10 @@ import org.springframework.scheduling.annotation.Async;
 import com.example.demo.model.UserSessionLog;
 import com.example.demo.repository.UserSessionLogRepository;
 import com.example.demo.utils.SecurityUtils;
+import com.example.demo.utils.UserAgentParser;
 
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.stereotype.Service;
@@ -25,15 +27,31 @@ public class SessionLogService {
         String userAgentStr = request.getHeader("User-Agent");
         String isCron = request.getHeader("X-Cron-Secret");
 
+        UserAgentParser.UserAgentInfo uaInfo = UserAgentParser.parse(userAgentStr);
+
         UserSessionLog sessionLog = UserSessionLog.builder()
-                .userId(userId)
-                .username(username)
+                .sessionId(request.getSession().getId())
                 .ipAddress(SecurityUtils.getClientIpAddress(request))
                 .userAgent(userAgentStr)
-                .sessionId(request.getSession().getId())
-                .isCronPing(isCron != null && !isCron.isEmpty())
+                .browserName(uaInfo.getBrowserName())
+                .osName(uaInfo.getOsName())
+                .deviceType(uaInfo.getDeviceType())
+                .isCronPing("true".equals(isCron))
+                .userId(null)   // Tạm thời null cho khách vãng lai
+                .username(null) // Tạm thời null cho khách vãng lai
                 .build();
 
         logRepository.save(sessionLog);
+    }
+
+    @Async
+    @Transactional
+    public void updateUserForSession(String sessionId, String username, Long userId) {
+        UserSessionLog sessionLog = logRepository.findFirstBySessionIdOrderByCreatedTimeDesc(sessionId);
+        if (sessionLog != null) {
+            sessionLog.setUsername(username);
+            sessionLog.setUserId(userId);
+            logRepository.save(sessionLog);
+        }
     }
 }
