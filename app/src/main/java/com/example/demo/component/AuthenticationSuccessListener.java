@@ -26,10 +26,12 @@ public class AuthenticationSuccessListener {
         if (attributes != null) {
             HttpServletRequest request = attributes.getRequest();
             String sessionId = request.getSession().getId();
+            String ipAddress = request.getRemoteAddr();
+            String userAgent = request.getHeader("User-Agent");
             String username = event.getAuthentication().getName();
             Long userId = (Long) request.getSession().getAttribute("userId"); // Assuming userId is stored in session
             
-            sessionLogService.updateUserForSession(sessionId, username, userId);
+            sessionLogService.updateUserForSession(sessionId, ipAddress, userAgent, userId, username);
         }
     }
 }

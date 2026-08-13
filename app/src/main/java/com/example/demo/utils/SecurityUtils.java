@@ -6,6 +6,7 @@ public class SecurityUtils {
     public static String getClientIpAddress(HttpServletRequest request) {
         String[] headers = {
             "X-Forwarded-For",
+            "X-Real-IP",
             "Proxy-Client-IP",
             "WL-Proxy-Client-IP",
             "HTTP_X_FORWARDED_FOR",
@@ -24,9 +25,19 @@ public class SecurityUtils {
                 if (ip.contains(",")) {
                     ip = ip.split(",")[0].trim(); // Get the first IP if there are multiple
                 }
-                return ip;
+                if (!isInternalIp(ip)) {
+                    return ip;
+                }
             }
         }
         return request.getRemoteAddr();
+    }
+
+    private static boolean isInternalIp(String ip) {
+        return ip.startsWith("127.")
+            || ip.startsWith("10.")
+            || ip.startsWith("192.168.")
+            || "0:0:0:0:0:0:0:1".equals(ip)
+            || "localhost".equalsIgnoreCase(ip);
     }
 }

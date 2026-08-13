@@ -1,5 +1,7 @@
 package com.example.demo.service;
 
+import java.util.Optional;
+
 import org.springframework.scheduling.annotation.Async;
 
 import com.example.demo.model.UserSessionLog;
@@ -9,7 +11,6 @@ import com.example.demo.utils.UserAgentParser;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.transaction.Transactional;
-import lombok.RequiredArgsConstructor;
 
 import org.springframework.stereotype.Service;
 
@@ -46,12 +47,18 @@ public class SessionLogService {
 
     @Async
     @Transactional
-    public void updateUserForSession(String sessionId, String username, Long userId) {
-        UserSessionLog sessionLog = logRepository.findFirstBySessionIdOrderByCreatedTimeDesc(sessionId);
-        if (sessionLog != null) {
-            sessionLog.setUsername(username);
-            sessionLog.setUserId(userId);
-            logRepository.save(sessionLog);
+    public void updateUserForSession(String sessionId, String ipAddress, String userAgent, Long userId, String username) {
+        Optional<UserSessionLog> logOptional = logRepository.findFirstBySessionIdOrderByCreatedTimeDesc(sessionId);
+        
+        if (logOptional.isEmpty()) {
+            logOptional = logRepository.findFirstByIpAddressAndUserAgentOrderByCreatedTimeDesc(ipAddress, userAgent);
         }
+
+        logOptional.ifPresent(log -> {
+            log.setUserId(userId);
+            log.setUsername(username);
+            log.setSessionId(sessionId);
+            logRepository.save(log);
+        });
     }
 }

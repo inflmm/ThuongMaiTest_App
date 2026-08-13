@@ -1,24 +1,38 @@
 package com.example.demo.utils;
 
-import lombok.Builder;
-import lombok.Getter;
-
 public class UserAgentParser {
-    @Getter
-    @Builder
+
     public static class UserAgentInfo {
-        private String browserName;
-        private String osName;
-        private String deviceType;
+        private final String browserName;
+        private final String osName;
+        private final String deviceType;
+
+        public UserAgentInfo(String browserName, String osName, String deviceType) {
+            this.browserName = browserName;
+            this.osName = osName;
+            this.deviceType = deviceType;
+        }
+
+        public String getBrowserName() {
+            return browserName;
+        }
+
+        public String getOsName() {
+            return osName;
+        }
+
+        public String getDeviceType() {
+            return deviceType;
+        }
     }
 
     public static UserAgentInfo parse(String userAgent) {
         if (userAgent == null || userAgent.isBlank()) {
-            return UserAgentInfo.builder()
-                    .browserName("Unknown")
-                    .osName("Unknown")
-                    .deviceType("Unknown")
-                    .build();
+            return new UserAgentInfo("Unknown", "Unknown", "Unknown");
+        }
+
+        if (userAgent.contains("Go-http-client")) {
+            return new UserAgentInfo("Go-http-client", "Server", "Bot");
         }
 
         String ua = userAgent.toLowerCase();
@@ -58,10 +72,6 @@ public class UserAgentParser {
             browserName = "Internet Explorer";
         }
 
-        return UserAgentInfo.builder()
-                .browserName(browserName)
-                .osName(osName)
-                .deviceType(deviceType)
-                .build();
+        return new UserAgentInfo(browserName, osName, deviceType);
     }
 }
