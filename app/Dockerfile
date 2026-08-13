@@ -17,4 +17,5 @@ COPY --from=builder /app/target/*.jar app.jar
 # Nhận cổng động từ môi trường Render/Railway (mặc định 8080)
 EXPOSE 8080
 
-ENTRYPOINT ["java", "-Djava.net.preferIPv4Stack=true", "-jar", "app.jar"]
+# Giới hạn bộ nhớ heap của JVM để tránh sử dụng quá nhiều bộ nhớ trên các nền tảng đám mây
+ENTRYPOINT ["java", "-Xms256m", "-Xmx400m", "-Djava.net.preferIPv4Stack=true", "-jar", "app.jar"]

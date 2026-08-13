@@ -10,8 +10,16 @@ import jakarta.persistence.Column;
 import jakarta.persistence.EntityListeners;
 import jakarta.persistence.MappedSuperclass;
 
+import lombok.*;
+import lombok.experimental.SuperBuilder;
+
 @MappedSuperclass // Đánh dấu đây là lớp cha, không tạo bảng riêng
 @EntityListeners(AuditingEntityListener.class) // Lắng nghe sự kiện để tự chèn thời gian
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@SuperBuilder
 public abstract class BaseEntity {
 
     @CreatedDate
