@@ -23,7 +23,7 @@ public class AuthenticationSuccessListener {
     public void onAuthenticationSuccess(InteractiveAuthenticationSuccessEvent event) {
         ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
 
-        if (attributes == null) {
+        if (attributes != null) {
             HttpServletRequest request = attributes.getRequest();
             String sessionId = request.getSession().getId();
             String username = event.getAuthentication().getName();
