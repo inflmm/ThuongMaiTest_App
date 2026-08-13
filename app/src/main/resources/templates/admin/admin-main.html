@@ -28,6 +28,9 @@
                     <a href="/admin/main/custom-routes" class="nav-link" data-module="custom-routes" title="Đường dẫn">
                         <i class="fa-solid fa-link"></i> Đường dẫn khác
                     </a>
+                    <a href="/admin/main/traffic" class="nav-link" data-module="traffic" title="Traffic">
+                        <i class="fa-solid fa-chart-line"></i> Traffic
+                    </a>
                     <a href="/admin/main/blogs" class="nav-link" data-module="blogs" title="Blog">
                         <i class="fa-solid fa-newspaper"></i> Blog
                     </a>
@@ -64,12 +67,16 @@
         </main>
     </div>
 
+    <script th:inline="javascript">
+        window.ADMIN_CRON_SECRET = /*[[${@environment.getProperty('app.cron.secret-token', '')}]]*/ '';
+    </script>
     <script th:src="@{/assets/js/admin/admin-core.js}"></script>
     <script th:src="@{/assets/js/admin/pages/admin-blog.js}"></script>
     <script th:src="@{/assets/js/admin/pages/admin-categories.js}"></script>
     <script th:src="@{/assets/js/admin/pages/admin-products.js}"></script>
     <script th:src="@{/assets/js/admin/pages/admin-collections.js}"></script>
     <script th:src="@{/assets/js/admin/pages/admin-custom-routes.js}"></script>
+    <script th:src="@{/assets/js/admin/pages/admin-traffic.js}"></script>
     <!-- Include the Quill library -->
     <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
 

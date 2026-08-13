@@ -1,5 +1,6 @@
 package com.example.demo.component;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 
@@ -15,6 +16,9 @@ public class VisitorInterceptor implements HandlerInterceptor{
     private static final String COOKIE_NAME = "visited_session";
     private static final int COOKIE_MAX_AGE = 60 * 60; // 1 hour in seconds
 
+    @Value("${app.analytics.enabled:true}")
+    private boolean analyticsEnabled;
+
     private final AnalyticsBufferService analyticsBufferService;
 
     public VisitorInterceptor(AnalyticsBufferService analyticsBufferService) {
@@ -23,6 +27,10 @@ public class VisitorInterceptor implements HandlerInterceptor{
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
+        
+        if (!analyticsEnabled) {
+            return true; // Skip analytics tracking if disabled
+        }
         String uri = request.getRequestURI();
 
         if (uri.startsWith("/swagger-ui") || uri.startsWith("/v3/api-docs")) {
