@@ -20,8 +20,8 @@ public class UserSessionLog extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "user_id")
-    private Long userId;
+    @Column(name = "user_id", length = 100)
+    private String userId;
 
     @Column(name = "username", length = 100)
     private String username;
@@ -50,7 +50,7 @@ public class UserSessionLog extends BaseEntity {
     public UserSessionLog() {
     }
 
-    public UserSessionLog(Long id, Long userId, String username, String ipAddress, String userAgent,
+    public UserSessionLog(Long id, String userId, String username, String ipAddress, String userAgent,
                           String browserName, String osName, String deviceType, String sessionId, Boolean isCronPing) {
         this.id = id;
         this.userId = userId;
@@ -70,7 +70,7 @@ public class UserSessionLog extends BaseEntity {
 
     public static class Builder {
         private Long id;
-        private Long userId;
+        private String userId;
         private String username;
         private String ipAddress;
         private String userAgent;
@@ -85,7 +85,7 @@ public class UserSessionLog extends BaseEntity {
             return this;
         }
 
-        public Builder userId(Long userId) {
+        public Builder userId(String userId) {
             this.userId = userId;
             return this;
         }
@@ -146,11 +146,11 @@ public class UserSessionLog extends BaseEntity {
         this.id = id;
     }
 
-    public Long getUserId() {
+    public String getUserId() {
         return userId;
     }
 
-    public void setUserId(Long userId) {
+    public void setUserId(String userId) {
         this.userId = userId;
     }
 

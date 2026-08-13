@@ -37,10 +37,15 @@ public class VisitorInterceptor implements HandlerInterceptor{
         if (!analyticsEnabled) {
             return true; // Skip analytics tracking if disabled
         }
-        String uri = request.getRequestURI();
 
+        String uri = request.getRequestURI();
         if (uri.startsWith("/swagger-ui") || uri.startsWith("/v3/api-docs")) {
             return true; // Allow access to Swagger UI and API docs without checking the cookie
+        }
+
+        String isCronJob = request.getHeader("X-Cron-Secret");
+        if (isCronJob != null && cronSecretToken.equals(isCronJob)) {
+            return true;
         }
 
         boolean hasSessionCookie = false;
@@ -54,12 +59,10 @@ public class VisitorInterceptor implements HandlerInterceptor{
                 }
             }
         }
-
-        String isCronJob = request.getHeader("X-Cron-Secret");
         
         
         // If the session cookie is not present and it's not a cron job request, set the cookie and increment unique sessions
-        if (!hasSessionCookie && (isCronJob == null || !cronSecretToken.equals(isCronJob))) {
+        if (!hasSessionCookie) {
             Cookie sessionCookie = new Cookie(COOKIE_NAME, "true");
             sessionCookie.setMaxAge(COOKIE_MAX_AGE);
             sessionCookie.setPath("/");
@@ -67,11 +70,10 @@ public class VisitorInterceptor implements HandlerInterceptor{
             response.addCookie(sessionCookie);
 
             String username = (String) request.getSession().getAttribute("username");
-            Long userId = (Long) request.getSession().getAttribute("userId");
+            String userId = (String) request.getSession().getAttribute("userId");
 
             analyticsBufferService.incrementSession();
-            sessionLogService.recordSession(request, username, userId); // Log the session for anonymous users
-            //System.out.println("Đây là 1 Unique Session mới!" + request.getRemoteAddr());
+            sessionLogService.recordSession(request, username, userId);
         }
         analyticsBufferService.incrementTraffic();
         //System.out.println("Ghi nhận 1 Lượt Traffic vào URI:" + uri);

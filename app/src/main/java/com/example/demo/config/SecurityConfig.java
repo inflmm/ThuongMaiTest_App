@@ -8,9 +8,17 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 
+import com.example.demo.service.SessionLogService;
+
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
+
+    private final SessionLogService sessionLogService;
+
+    public SecurityConfig(SessionLogService sessionLogService) {
+        this.sessionLogService = sessionLogService;
+    }
 
 	@Bean
 	public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -59,7 +67,10 @@ public class SecurityConfig {
 	        .formLogin(login -> login
 	            .loginPage("/homepage") // Nếu chưa auth mà vào trang cấm, sẽ về đây
 	            .loginProcessingUrl("/api/auth/login") // URL mà JS sẽ fetch tới
-	            .successHandler((request, response, authentication) -> {
+	            .successHandler((request, response, authentication) -> {                Long anonymousLogId = sessionLogService.findAnonymousLogIdBySessionId(request.getSession().getId());
+                if (anonymousLogId != null) {
+                    request.setAttribute("anonymousSessionLogId", anonymousLogId);
+                }
 	                response.setStatus(200);
 	                response.setContentType("application/json;charset=UTF-8");
 
