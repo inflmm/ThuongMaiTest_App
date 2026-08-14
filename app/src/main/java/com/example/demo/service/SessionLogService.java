@@ -1,7 +1,5 @@
 package com.example.demo.service;
 
-import java.util.Optional;
-
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
@@ -23,7 +21,7 @@ public class SessionLogService {
     }
 
     @Async
-    public Long recordSession(HttpServletRequest request, String username, String userId) {
+    public void recordSession(HttpServletRequest request, String username, String userId) {
         String userAgentStr = request.getHeader("User-Agent");
         String isCron = request.getHeader("X-Cron-Secret");
 
@@ -41,29 +39,7 @@ public class SessionLogService {
                 .username(null)
                 .build();
 
-        UserSessionLog saved = logRepository.save(sessionLog);
-        return saved.getId();
-    }
-
-    public Long findAnonymousLogIdBySessionId(String sessionId) {
-        return logRepository.findFirstBySessionIdOrderByCreatedTimeDesc(sessionId)
-                .map(UserSessionLog::getId)
-                .orElse(null);
-    }
-
-    @Async
-    @Transactional
-    public void updateUserForSession(Long anonymousLogId, String sessionId, String userId, String username) {
-        if (anonymousLogId == null) {
-            return;
-        }
-
-        logRepository.findById(anonymousLogId).ifPresent(log -> {
-            log.setUserId(userId);
-            log.setUsername(username);
-            log.setSessionId(sessionId);
-            logRepository.save(log);
-        });
+        logRepository.save(sessionLog);
     }
 
     @Async

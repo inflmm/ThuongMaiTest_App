@@ -1554,7 +1554,7 @@ function toggleUploadMode(isResizeMode) {
 function handleModalFileSelect(input) {
     const previewList = document.getElementById('upload-preview-list');
     const noFileText = document.getElementById('no-file-text');
-    const MAX_SIZE_MB = 25;
+    const MAX_SIZE_MB = 10;
 
     if (!input.files || input.files.length === 0) return;
     if (noFileText) noFileText.remove();

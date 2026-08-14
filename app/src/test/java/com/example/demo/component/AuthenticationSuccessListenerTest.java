@@ -35,7 +35,6 @@ class AuthenticationSuccessListenerTest {
 
         MockHttpServletRequest request = new MockHttpServletRequest();
         HttpSession session = request.getSession();
-        request.setAttribute("anonymousSessionLogId", 123L);
 
         User user = new User();
         user.setId(55L);
@@ -51,7 +50,7 @@ class AuthenticationSuccessListenerTest {
 
         listener.onAuthenticationSuccess(event);
 
-        verify(sessionLogService).updateUserForSession(123L, "1", "USER_123", "alice");
+        verify(sessionLogService).createAuthenticatedSessionLog(request, "USER_123", "alice");
         assert session.getAttribute("userId") != null;
         assert session.getAttribute("username") != null;
     }

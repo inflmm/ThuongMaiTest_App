@@ -50,18 +50,6 @@ public class AuthenticationSuccessListener {
         session.setAttribute("userId", user.getUserId());
         session.setAttribute("username", user.getUsername());
 
-        Long anonymousLogId = (Long) request.getAttribute("anonymousSessionLogId");
-        if (anonymousLogId == null) {
-            anonymousLogId = sessionLogService.findAnonymousLogIdBySessionId(session.getId());
-        }
-
-        String currentSessionId = session.getId();
-
-        if (anonymousLogId != null) {
-            sessionLogService.updateUserForSession(anonymousLogId, currentSessionId, user.getUserId(), user.getUsername());
-            request.removeAttribute("anonymousSessionLogId");
-        } else {
-            sessionLogService.createAuthenticatedSessionLog(request, user.getUserId(), user.getUsername());
-        }
+        sessionLogService.createAuthenticatedSessionLog(request, user.getUserId(), user.getUsername());
     }
 }

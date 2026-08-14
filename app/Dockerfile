@@ -18,4 +18,11 @@ COPY --from=builder /app/target/*.jar app.jar
 EXPOSE 8080
 
 # Giới hạn bộ nhớ heap của JVM để tránh sử dụng quá nhiều bộ nhớ trên các nền tảng đám mây
-ENTRYPOINT ["java", "-Xms256m", "-Xmx400m", "-Djava.net.preferIPv4Stack=true", "-jar", "app.jar"]
+ENTRYPOINT ["java", \
+  "-Xms64m", "-Xmx220m", \
+  "-XX:MaxMetaspaceSize=96m", \
+  "-XX:MaxDirectMemorySize=32m", \
+  "-XX:ReservedCodeCacheSize=48m", \
+  "-Xss256k", \
+  "-XX:+UseSerialGC", \
+  "-jar", "app.jar"]
