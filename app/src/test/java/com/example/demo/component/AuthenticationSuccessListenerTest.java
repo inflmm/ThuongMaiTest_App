@@ -50,7 +50,14 @@ class AuthenticationSuccessListenerTest {
 
         listener.onAuthenticationSuccess(event);
 
-        verify(sessionLogService).createAuthenticatedSessionLog(request, "USER_123", "alice");
+        verify(sessionLogService).createAuthenticatedSessionLog(
+                session.getId(),
+                "0:0:0:0:0:0:0:1", // Localhost IP in IPv6 format
+                null, // User-Agent is not set in MockHttpServletRequest
+                false, // Not a cron ping
+                "USER_123",
+                "alice"
+        );
         assert session.getAttribute("userId") != null;
         assert session.getAttribute("username") != null;
     }
