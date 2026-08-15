@@ -19,8 +19,8 @@ EXPOSE 8080
 
 # Giới hạn bộ nhớ heap của JVM để tránh sử dụng quá nhiều bộ nhớ trên các nền tảng đám mây
 ENTRYPOINT ["java", \
-  "-Xms64m", "-Xmx220m", \
-  "-XX:MaxMetaspaceSize=96m", \
+  "-Xms64m", "-Xmx200m", \
+  "-XX:MaxMetaspaceSize=128m", \
   "-XX:MaxDirectMemorySize=32m", \
   "-XX:ReservedCodeCacheSize=48m", \
   "-Xss256k", \

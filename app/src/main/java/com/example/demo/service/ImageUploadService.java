@@ -1,12 +1,23 @@
 package com.example.demo.service;
 
+import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.security.SecureRandom;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.Iterator;
 import java.util.List;
+
+import javax.imageio.IIOImage;
+import javax.imageio.ImageIO;
+import javax.imageio.ImageReadParam;
+import javax.imageio.ImageReader;
+import javax.imageio.ImageWriteParam;
+import javax.imageio.ImageWriter;
+import javax.imageio.stream.ImageInputStream;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -33,6 +44,11 @@ public class ImageUploadService {
     private static final String CHARACTERS = "abcdefghijklmnopqrstuvwxyz0123456789";
     private static final SecureRandom random = new SecureRandom();
     private static final long MAX_TOTAL_UPLOAD_BYTES = 25L * 1024 * 1024;
+
+    // Hard ceiling on the longest edge we ever decode the source at, regardless of
+    // its longest requested variant. Protects against a small compressed file size
+    // hiding a very large pixel count (e.g. a high-megapixel, high-compression photo).
+    private static final int MAX_SOURCE_DIMENSION = 2560;
 
     private record VariantSpec(String variant, int size) {
     }
@@ -116,38 +132,154 @@ public class ImageUploadService {
             if (baseName == null || baseName.isBlank()) {
                 baseName = "image";
             }
-            String randomStr = generateRandomString();
-            String baseFileName = baseName.contains(".") ? baseName.substring(0, baseName.lastIndexOf('.')) : baseName;
-            String extension = baseName.contains(".") ? baseName.substring(baseName.lastIndexOf('.') + 1) : "jpg";
+            String extension = "jpg";
             String namingBase = resolveNamingBase(baseName, settings);
-            String savedName = "";
-            List<VariantSpec> variants = resolveVariants(settings);
-
-            for (VariantSpec variantSpec : variants) {
-                String targetFileName = buildTargetFileName(namingBase, settings, variantSpec.variant(), extension);
-                int size = variantSpec.size();
-                if (settings.resizeMode().equals("specific") && "custom".equals(settings.variant())) {
-                    size = Math.max(settings.customWidth() == null ? 400 : settings.customWidth(), settings.customHeight() == null ? 400 : settings.customHeight());
-                }
-
-                try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
-                    Thumbnails.of(file.getInputStream())
-                            .size(size, size)
-                            .outputFormat("jpg")
-                            .outputQuality(Math.max(0.5, Math.min(1.0, settings.quality() / 100.0)))
-                            .toOutputStream(baos);
-
-                    String objectPath = buildImageObjectPath(selectedFolder, targetFileName);
-                    supabaseStorageService.uploadBytes(SupabaseStorageService.StorageRoot.IMAGES, objectPath, baos.toByteArray(), "image/jpeg");
-                    saveProductImageRecord(objectPath, generatedFileNames.size() + 1, variantSpec.variant());
-                    savedName = targetFileName;
-                }
-            }
-
+            String savedName = processOneImageJpg(file, selectedFolder, settings, namingBase, extension, generatedFileNames.size());
             generatedFileNames.add(savedName);
         }
 
         return generatedFileNames;
+    }
+
+    /**
+     * Decodes the source image exactly once (bounded to MAX_SOURCE_DIMENSION via
+     * subsampling, so peak memory doesn't scale with the original's native
+     * resolution), then generates each variant by downscaling from the previous,
+     * smaller output rather than re-decoding the original for every size.
+     */
+    private String processOneImageJpg(MultipartFile file, String selectedFolder, UploadSettings settings,
+            String namingBase, String extension, int currentCount) throws IOException {
+
+        List<VariantSpec> variants = resolveResolvedVariants(settings);
+        // Largest first, so each step downsamples from the previous (smaller-cost) step.
+        List<VariantSpec> orderedVariants = variants.stream()
+                .sorted(Comparator.comparingInt(VariantSpec::size).reversed())
+                .toList();
+
+        float jpegQuality = (float) Math.max(0.5, Math.min(1.0, settings.quality() / 100.0));
+        String savedName = "";
+        BufferedImage currentSource = null;
+
+        try {
+            currentSource = readImageBounded(file, MAX_SOURCE_DIMENSION);
+
+            for (VariantSpec variantSpec : orderedVariants) {
+                int size = variantSpec.size();
+
+                BufferedImage resized = (size >= Math.max(currentSource.getWidth(), currentSource.getHeight()))
+                        ? currentSource
+                        : Thumbnails.of(currentSource).size(size, size).asBufferedImage();
+
+                byte[] jpegBytes = encodeJpeg(resized, jpegQuality);
+
+                String targetFileName = buildTargetFileName(namingBase, settings, variantSpec.variant(), extension);
+                String objectPath = buildImageObjectPath(selectedFolder, targetFileName);
+                supabaseStorageService.uploadBytes(SupabaseStorageService.StorageRoot.IMAGES, objectPath, jpegBytes, "image/jpeg");
+                saveProductImageRecord(objectPath, currentCount + 1, variantSpec.variant());
+                savedName = targetFileName;
+
+                // Release the previous buffer before chaining to the next, smaller one —
+                // don't wait for the whole loop to finish before anything is eligible for GC.
+                if (resized != currentSource) {
+                    currentSource.flush();
+                    currentSource = resized;
+                }
+            }
+        } finally {
+            if (currentSource != null) {
+                currentSource.flush();
+            }
+        }
+
+        return savedName;
+    }
+
+    /**
+     * Same variant resolution as resolveVariants(), but also applies the
+     * "specific" + "custom" size override up front instead of re-checking it
+     * inside the processing loop.
+     */
+    private List<VariantSpec> resolveResolvedVariants(UploadSettings settings) {
+        if (settings.resizeMode().equals("specific") && "custom".equals(settings.variant())) {
+            int size = Math.max(
+                    settings.customWidth() == null ? 400 : settings.customWidth(),
+                    settings.customHeight() == null ? 400 : settings.customHeight());
+            return List.of(new VariantSpec(null, size));
+        }
+        return resolveVariants(settings);
+    }
+
+    /**
+     * Reads an image bounded to maxDimension on its longest edge using
+     * ImageIO's native subsampling, so a large source is never fully decoded
+     * at its native resolution just to be immediately downscaled — this bounds
+     * peak memory for the initial decode step regardless of the source's
+     * pixel dimensions.
+     */
+    private BufferedImage readImageBounded(MultipartFile file, int maxDimension) throws IOException {
+        try (ImageInputStream iis = ImageIO.createImageInputStream(file.getInputStream())) {
+            if (iis == null) {
+                throw new IOException("Unable to read image stream: " + file.getOriginalFilename());
+            }
+            Iterator<ImageReader> readers = ImageIO.getImageReaders(iis);
+            if (!readers.hasNext()) {
+                throw new IOException("Unsupported or corrupt image format: " + file.getOriginalFilename());
+            }
+
+            ImageReader reader = readers.next();
+            try {
+                reader.setInput(iis, true, true);
+                int width = reader.getWidth(0);
+                int height = reader.getHeight(0);
+                int longestEdge = Math.max(width, height);
+
+                ImageReadParam param = reader.getDefaultReadParam();
+                if (longestEdge > maxDimension) {
+                    int subsampling = (int) Math.ceil((double) longestEdge / maxDimension);
+                    param.setSourceSubsampling(subsampling, subsampling, 0, 0);
+                }
+
+                BufferedImage image = reader.read(0, param);
+                if (image == null) {
+                    throw new IOException("Failed to decode image: " + file.getOriginalFilename());
+                }
+                return image;
+            } finally {
+                reader.dispose();
+            }
+        }
+    }
+
+    /** Encodes a BufferedImage as JPEG bytes at the given quality (0.0–1.0), without any resizing. */
+    private byte[] encodeJpeg(BufferedImage image, float quality) throws IOException {
+        Iterator<ImageWriter> writers = ImageIO.getImageWritersByFormatName("jpg");
+        if (!writers.hasNext()) {
+            throw new IOException("No JPEG writer available on this JVM");
+        }
+        ImageWriter writer = writers.next();
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+            javax.imageio.stream.MemoryCacheImageOutputStream ios = new javax.imageio.stream.MemoryCacheImageOutputStream(baos);
+            writer.setOutput(ios);
+
+            ImageWriteParam param = writer.getDefaultWriteParam();
+            if (param.canWriteCompressed()) {
+                param.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
+                param.setCompressionQuality(quality);
+            }
+
+            // JPEG doesn't support an alpha channel — flatten if the source has one.
+            BufferedImage rgbImage = image;
+            if (image.getColorModel().hasAlpha()) {
+                rgbImage = new BufferedImage(image.getWidth(), image.getHeight(), BufferedImage.TYPE_INT_RGB);
+                rgbImage.createGraphics().drawImage(image, 0, 0, java.awt.Color.WHITE, null);
+            }
+
+            writer.write(null, new IIOImage(rgbImage, null, null), param);
+            ios.flush();
+            return baos.toByteArray();
+        } finally {
+            writer.dispose();
+        }
     }
 
     public List<String> uploadAndProcessImagesWebp(MultipartFile[] files, String selectedFolder, UploadSettings settings) throws IOException {
