@@ -2,6 +2,8 @@
 
 This is AI generated report
 
+Demo links: [Homepage](https://thuongmaitest-app.onrender.com/homepage) | [Admin](https://thuongmaitest-app.onrender.com/admin/login) - contact to the author for admin account
+
 A Spring Boot ecommerce backend: storefront catalog, cart/checkout, role-based
 admin, blog/content management, and visitor analytics — built as a portfolio
 project and deployed under real resource constraints (512MB RAM / 0.1 CPU free
