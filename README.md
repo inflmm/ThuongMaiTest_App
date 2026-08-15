@@ -1,5 +1,7 @@
 # ThuongMai Ecommerce Backend
 
+This is AI generated report
+
 A Spring Boot ecommerce backend: storefront catalog, cart/checkout, role-based
 admin, blog/content management, and visitor analytics — built as a portfolio
 project and deployed under real resource constraints (512MB RAM / 0.1 CPU free
