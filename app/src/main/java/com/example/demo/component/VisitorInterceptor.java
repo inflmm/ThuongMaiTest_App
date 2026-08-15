@@ -6,10 +6,12 @@ import org.springframework.web.servlet.HandlerInterceptor;
 
 import com.example.demo.service.AnalyticsBufferService;
 import com.example.demo.service.SessionLogService;
+import com.example.demo.utils.SecurityUtils;
 
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 
 @Component
 public class VisitorInterceptor implements HandlerInterceptor{
@@ -43,8 +45,9 @@ public class VisitorInterceptor implements HandlerInterceptor{
             return true; // Allow access to Swagger UI and API docs without checking the cookie
         }
 
-        String isCronJob = request.getHeader("X-Cron-Secret");
-        if (isCronJob != null && cronSecretToken.equals(isCronJob)) {
+        String cronHeader = request.getHeader("X-Cron-Secret");
+        boolean isCronPing = cronHeader != null && cronSecretToken.equals(cronHeader);
+        if (isCronPing) {
             return true;
         }
 
@@ -69,11 +72,26 @@ public class VisitorInterceptor implements HandlerInterceptor{
             sessionCookie.setHttpOnly(true);
             response.addCookie(sessionCookie);
 
-            String username = (String) request.getSession().getAttribute("username");
-            String userId = (String) request.getSession().getAttribute("userId");
-
+            // Everything the async logger needs must be extracted HERE, on the
+            // original request thread — never pass the HttpServletRequest itself
+            // into @Async code. Tomcat pools and recycles Request/Response objects
+            // once a request completes; by the time an @Async method body actually
+            // runs (on a different thread, possibly after this method has already
+            // returned), the request may already be reset for reuse, causing
+            // IllegalStateException: The request object has been recycled...
+            HttpSession session = request.getSession();
+            String username = (String) session.getAttribute("username");
+            String userId = (String) session.getAttribute("userId");
+            String sessionId = session.getId();
+            String ipAddress = SecurityUtils.getClientIpAddress(request);
+            String userAgent = request.getHeader("User-Agent");
+ 
             analyticsBufferService.incrementSession();
-            sessionLogService.recordSession(request, username, userId);
+            // isCronPing is always false at this call site (real cron pings already
+            // returned above) — kept as an explicit parameter so the service method
+            // stays reusable from other call sites without guessing.
+            sessionLogService.recordSession(sessionId, ipAddress, userAgent, isCronPing, userId, username);
+
         }
         analyticsBufferService.incrementTraffic();
         //System.out.println("Ghi nhận 1 Lượt Traffic vào URI:" + uri);

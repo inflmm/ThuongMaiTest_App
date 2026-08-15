@@ -10,6 +10,7 @@ import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -28,6 +29,9 @@ import com.example.demo.repository.MemoryUsageLogRepository;
 @Service
 public class MemoryMonitorService {
 
+    @Value("${app.analytics.enabled:true}")
+    private boolean analyticsEnabled;
+
     private static final long MB = (long) 1024 * 1024;
     private final Clock clock;
 
@@ -42,6 +46,11 @@ public class MemoryMonitorService {
     // Swap to @Scheduled(cron = "0 0 * * * *") if you want it aligned to the top of each hour.
     @Scheduled(fixedRate = 60 * 60 * 1000L, initialDelay = 60 * 1000L)
     public void recordSnapshot() {
+        
+        if(!analyticsEnabled){
+            return;
+        }
+        
         MemoryMXBean memoryBean = ManagementFactory.getMemoryMXBean();
         ClassLoadingMXBean classBean = ManagementFactory.getClassLoadingMXBean();
         ThreadMXBean threadBean = ManagementFactory.getThreadMXBean();

@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import javax.imageio.IIOImage;
 import javax.imageio.ImageIO;
@@ -50,7 +51,15 @@ public class ImageUploadService {
     // hiding a very large pixel count (e.g. a high-megapixel, high-compression photo).
     private static final int MAX_SOURCE_DIMENSION = 2560;
 
-    private record VariantSpec(String variant, int size) {
+    /**
+     * One output size to generate.
+     * label   - the suffix used in the output filename ("large", "medium", "compact",
+     *           "thumbnail", or null for a single custom/specific-size request)
+     * minWidth - despite the old name "size", this was always the target's longest
+     *           edge in pixels (Thumbnailator/cwebp both fit-within-box on the longest
+     *           edge while preserving aspect ratio) — renamed here to say what it means.
+     */
+    private record VariantSpec(String label, int minWidth) {
     }
 
     public record UploadSettings(boolean resizeEnabled, String format, int quality, String resizeMode, String variant, Integer customWidth, Integer customHeight, String namingMode, String prefix, String suffixStyle) {
@@ -72,7 +81,7 @@ public class ImageUploadService {
             normalizedVariant = null;
         }
 
-        int normalizedQuality = quality == null ? 85 : quality;
+        int normalizedQuality = quality == null ? 80 : quality;
         if (normalizedQuality < 50) {
             normalizedQuality = 50;
         } else if (normalizedQuality > 100) {
@@ -110,18 +119,63 @@ public class ImageUploadService {
 
     public List<String> uploadAndProcessImages(MultipartFile[] files, String selectedFolder, String format, Integer quality, String resizeMode, String variant, Integer customWidth, Integer customHeight, String namingMode, String prefix, String suffixStyle) throws IOException {
         UploadSettings settings = resolveUploadSettings(format, quality, resizeMode, variant, customWidth, customHeight, namingMode, prefix, suffixStyle);
-        if ("webp".equalsIgnoreCase(settings.format())) {
-            return uploadAndProcessImagesWebp(files, selectedFolder, settings);
-        }
-        return uploadAndProcessImagesJpg(files, selectedFolder, settings);
+        return uploadAndProcessImages(files, selectedFolder, settings);
     }
 
-    public List<String> uploadAndProcessImagesJpg(MultipartFile[] files, String selectedFolder, UploadSettings settings) throws IOException {
+    // ======================================================================
+    // Unified image pipeline
+    //
+    // Both JPEG and WebP output go through this single path. What differs
+    // between the two formats is only the encode step (ImageIO writer for
+    // JPEG vs. shelling out to the `cwebp` CLI for WebP); everything about
+    // decoding the source, resolving which sizes to generate, deciding
+    // whether to upscale, and naming the output file is shared.
+    // ======================================================================
+
+    /**
+     * Processes every uploaded file into one or more resized copies and uploads
+     * each to storage.
+     *
+     * Flow per file:
+     *   1. Decode the source exactly once, bounded to MAX_SOURCE_DIMENSION via
+     *      ImageIO subsampling — this caps peak decode memory regardless of the
+     *      source's native resolution (a small compressed file size does not
+     *      imply a small pixel count).
+     *   2. Resolve the requested variants (either the fixed large/medium/compact/
+     *      thumbnail set, or a single specific/custom size), ordered largest to
+     *      smallest.
+     *   3. For each variant, from largest to smallest:
+     *        - If the current working image is already at or below the variant's
+     *          target width, DO NOT upscale — re-use it as-is for this slot
+     *          instead of enlarging it. A file is still produced for every
+     *          requested variant (so callers always get a consistent set of
+     *          URLs), it's just not artificially blown up past its real
+     *          resolution.
+     *        - Otherwise, resize down from the current working image (which for
+     *          JPEG is the previous variant's already-smaller output, not the
+     *          original) and make that the new working image. This means only
+     *          the largest variant ever pays for a "real" resize pass in the
+     *          common case.
+     *        - Encode to the target format and upload.
+     *   4. Release all intermediate buffers/temp files.
+     *
+     * Note on WebP specifically: cwebp doesn't take an in-memory BufferedImage
+     * or chain cleanly from a previous *compressed* WebP output without
+     * compounding quality loss across generations, so instead of chaining like
+     * the JPEG path does, every WebP variant is resized by cwebp from the same
+     * single bounded intermediate (written once, from the same decode step).
+     * That intermediate is already capped at MAX_SOURCE_DIMENSION, so this
+     * isn't paying full-resolution cost per variant — it's a deliberate,
+     * format-appropriate difference, not an inconsistency.
+     */
+    public List<String> uploadAndProcessImages(MultipartFile[] files, String selectedFolder, UploadSettings settings) throws IOException {
         List<String> generatedFileNames = new ArrayList<>();
         if (files == null || files.length == 0) {
             return generatedFileNames;
         }
         validateBatchSize(files);
+
+        boolean isWebp = "webp".equals(settings.format());
 
         for (MultipartFile file : files) {
             if (file == null || file.isEmpty()) {
@@ -132,62 +186,76 @@ public class ImageUploadService {
             if (baseName == null || baseName.isBlank()) {
                 baseName = "image";
             }
-            String extension = "jpg";
             String namingBase = resolveNamingBase(baseName, settings);
-            String savedName = processOneImageJpg(file, selectedFolder, settings, namingBase, extension, generatedFileNames.size());
+            String savedName = processOneImage(file, selectedFolder, settings, namingBase, generatedFileNames.size(), isWebp);
             generatedFileNames.add(savedName);
         }
 
         return generatedFileNames;
     }
 
-    /**
-     * Decodes the source image exactly once (bounded to MAX_SOURCE_DIMENSION via
-     * subsampling, so peak memory doesn't scale with the original's native
-     * resolution), then generates each variant by downscaling from the previous,
-     * smaller output rather than re-decoding the original for every size.
-     */
-    private String processOneImageJpg(MultipartFile file, String selectedFolder, UploadSettings settings,
-            String namingBase, String extension, int currentCount) throws IOException {
+    private String processOneImage(MultipartFile file, String selectedFolder, UploadSettings settings,
+            String namingBase, int currentCount, boolean isWebp) throws IOException {
 
-        List<VariantSpec> variants = resolveResolvedVariants(settings);
-        // Largest first, so each step downsamples from the previous (smaller-cost) step.
-        List<VariantSpec> orderedVariants = variants.stream()
-                .sorted(Comparator.comparingInt(VariantSpec::size).reversed())
+        String extension = isWebp ? "webp" : "jpg";
+        float jpegQuality = (float) Math.max(0.5, Math.min(1.0, settings.quality() / 100.0));
+
+        List<VariantSpec> orderedVariants = resolveResolvedVariants(settings).stream()
+                .sorted(Comparator.comparingInt(VariantSpec::minWidth).reversed())
                 .toList();
 
-        float jpegQuality = (float) Math.max(0.5, Math.min(1.0, settings.quality() / 100.0));
+        BufferedImage currentSource = readImageBounded(file, MAX_SOURCE_DIMENSION);
+        File webpIntermediate = null;
         String savedName = "";
-        BufferedImage currentSource = null;
 
         try {
-            currentSource = readImageBounded(file, MAX_SOURCE_DIMENSION);
+            if (isWebp) {
+                webpIntermediate = File.createTempFile("webp_source_", ".png");
+                ImageIO.write(currentSource, "png", webpIntermediate);
+            }
 
-            for (VariantSpec variantSpec : orderedVariants) {
-                int size = variantSpec.size();
+            for (VariantSpec variant : orderedVariants) {
+                int targetLongestEdge = variant.minWidth();
+                int currentLongestEdge = Math.max(currentSource.getWidth(), currentSource.getHeight());
+                boolean needsResize = targetLongestEdge < currentLongestEdge;
 
-                BufferedImage resized = (size >= Math.max(currentSource.getWidth(), currentSource.getHeight()))
-                        ? currentSource
-                        : Thumbnails.of(currentSource).size(size, size).asBufferedImage();
-
-                byte[] jpegBytes = encodeJpeg(resized, jpegQuality);
-
-                String targetFileName = buildTargetFileName(namingBase, settings, variantSpec.variant(), extension);
+                String targetFileName = buildTargetFileName(namingBase, settings, variant.label(), extension);
                 String objectPath = buildImageObjectPath(selectedFolder, targetFileName);
-                supabaseStorageService.uploadBytes(SupabaseStorageService.StorageRoot.IMAGES, objectPath, jpegBytes, "image/jpeg");
-                saveProductImageRecord(objectPath, currentCount + 1, variantSpec.variant());
+
+                byte[] outputBytes;
+                BufferedImage nextSource = currentSource;
+
+                if (isWebp) {
+                    File tempWebpFile = File.createTempFile("webp_out_", ".webp");
+                    try {
+                        runCwebp(webpIntermediate, tempWebpFile, settings.quality(), targetLongestEdge, needsResize);
+                        outputBytes = Files.readAllBytes(tempWebpFile.toPath());
+                    } finally {
+                        tempWebpFile.delete();
+                    }
+                } else {
+                    if (needsResize) {
+                        nextSource = Thumbnails.of(currentSource).size(targetLongestEdge, targetLongestEdge).asBufferedImage();
+                    }
+                    outputBytes = encodeJpeg(nextSource, jpegQuality);
+                }
+
+                String contentType = isWebp ? "image/webp" : "image/jpeg";
+                supabaseStorageService.uploadBytes(SupabaseStorageService.StorageRoot.IMAGES, objectPath, outputBytes, contentType);
+                saveProductImageRecord(objectPath, currentCount + 1, variant.label());
                 savedName = targetFileName;
 
-                // Release the previous buffer before chaining to the next, smaller one —
-                // don't wait for the whole loop to finish before anything is eligible for GC.
-                if (resized != currentSource) {
+                if (!isWebp && needsResize && nextSource != currentSource) {
                     currentSource.flush();
-                    currentSource = resized;
+                    currentSource = nextSource;
                 }
             }
         } finally {
             if (currentSource != null) {
                 currentSource.flush();
+            }
+            if (webpIntermediate != null) {
+                webpIntermediate.delete();
             }
         }
 
@@ -201,10 +269,10 @@ public class ImageUploadService {
      */
     private List<VariantSpec> resolveResolvedVariants(UploadSettings settings) {
         if (settings.resizeMode().equals("specific") && "custom".equals(settings.variant())) {
-            int size = Math.max(
+            int minWidth = Math.max(
                     settings.customWidth() == null ? 400 : settings.customWidth(),
                     settings.customHeight() == null ? 400 : settings.customHeight());
-            return List.of(new VariantSpec(null, size));
+            return List.of(new VariantSpec(null, minWidth));
         }
         return resolveVariants(settings);
     }
@@ -282,69 +350,53 @@ public class ImageUploadService {
         }
     }
 
-    public List<String> uploadAndProcessImagesWebp(MultipartFile[] files, String selectedFolder, UploadSettings settings) throws IOException {
-        List<String> generatedFileNames = new ArrayList<>();
-        if (files == null || files.length == 0) {
-            return generatedFileNames;
+    /**
+     * Runs cwebp via ProcessBuilder with array-form arguments — avoids Runtime.exec's
+     * naive whitespace tokenizing of a single command string (which silently breaks on
+     * paths containing spaces, and is a shell-injection-adjacent pattern to avoid even
+     * when inputs are currently trusted). Also enforces a timeout and drains process
+     * output, since an un-drained stdout/stderr pipe can deadlock the process once its
+     * OS buffer fills.
+     *
+     * When resize is false, the -resize flag is omitted entirely so cwebp encodes the
+     * source at its actual dimensions rather than upscaling it to targetLongestEdge.
+     */
+    private void runCwebp(File sourceFile, File outputFile, int quality, int targetLongestEdge, boolean resize) throws IOException {
+        List<String> command = new ArrayList<>(List.of("cwebp", "-q", String.valueOf(quality)));
+        if (resize) {
+            command.addAll(List.of("-resize", String.valueOf(targetLongestEdge), "0"));
         }
-        validateBatchSize(files);
+        command.addAll(List.of(sourceFile.getAbsolutePath(), "-o", outputFile.getAbsolutePath()));
 
-        for (MultipartFile file : files) {
-            if (file == null || file.isEmpty()) {
-                continue;
-            }
+        ProcessBuilder builder = new ProcessBuilder(command);
+        builder.redirectErrorStream(true);
+        builder.redirectOutput(ProcessBuilder.Redirect.DISCARD);
 
-            String baseName = StringUtils.cleanPath(file.getOriginalFilename());
-            if (baseName == null || baseName.isBlank()) {
-                baseName = "image";
-            }
-            String randomStr = generateRandomString();
-            String baseFileName = baseName.contains(".") ? baseName.substring(0, baseName.lastIndexOf('.')) : baseName;
-            String extension = "webp";
-            String namingBase = resolveNamingBase(baseName, settings);
-            String savedName = "";
-            List<VariantSpec> variants = resolveVariants(settings);
-            File tempOriginalFile = File.createTempFile("raw_upload_", "_" + file.getOriginalFilename());
-            file.transferTo(tempOriginalFile);
-
-            try {
-                for (VariantSpec variantSpec : variants) {
-                    String targetFileName = buildTargetFileName(namingBase, settings, variantSpec.variant(), extension);
-                    int size = variantSpec.size();
-                    if (settings.resizeMode().equals("specific") && "custom".equals(settings.variant())) {
-                        size = Math.max(settings.customWidth() == null ? 400 : settings.customWidth(), settings.customHeight() == null ? 400 : settings.customHeight());
-                    }
-
-                    File tempWebpFile = File.createTempFile("webp_out_", ".webp");
-                    String command = String.format("cwebp -q %d -resize %d 0 \"%s\" -o \"%s\"", settings.quality(), size, tempOriginalFile.getAbsolutePath(), tempWebpFile.getAbsolutePath());
-                    Process process = Runtime.getRuntime().exec(command);
-                    int exitCode = process.waitFor();
-                    if (exitCode != 0) {
-                        throw new IOException("LỖI HỆ THỐNG: Ứng dụng cwebp trả về lỗi hệ điều hành (Mã lỗi: " + exitCode + ").");
-                    }
-
-                    byte[] imageBytes = Files.readAllBytes(tempWebpFile.toPath());
-                    String objectPath = buildImageObjectPath(selectedFolder, targetFileName);
-                    supabaseStorageService.uploadBytes(SupabaseStorageService.StorageRoot.IMAGES, objectPath, imageBytes, "image/webp");
-                    saveProductImageRecord(objectPath, generatedFileNames.size() + 1, variantSpec.variant());
-                    savedName = targetFileName;
-
-                    if (tempWebpFile.exists()) {
-                        tempWebpFile.delete();
-                    }
-                }
-                generatedFileNames.add(savedName);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new IOException("Tiến trình CLI WebP bị ngắt quãng bất thường: " + e.getMessage());
-            } finally {
-                if (tempOriginalFile.exists()) {
-                    tempOriginalFile.delete();
-                }
-            }
+        Process process;
+        try {
+            process = builder.start();
+        } catch (IOException e) {
+            throw new IOException("Failed to start cwebp — is it installed and on PATH?", e);
         }
 
-        return generatedFileNames;
+        boolean finished;
+        try {
+            finished = process.waitFor(30, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            process.destroyForcibly();
+            throw new IOException("cwebp process was interrupted", e);
+        }
+
+        if (!finished) {
+            process.destroyForcibly();
+            throw new IOException("cwebp timed out after 30s (target=" + targetLongestEdge + ")");
+        }
+
+        int exitCode = process.exitValue();
+        if (exitCode != 0) {
+            throw new IOException("cwebp exited with code " + exitCode + " (target=" + targetLongestEdge + ")");
+        }
     }
 
     public List<String> uploadRawImages(MultipartFile[] files, String selectedFolder) throws IOException {
@@ -398,7 +450,7 @@ public class ImageUploadService {
                 return List.of(new VariantSpec(null, Math.max(settings.customWidth() == null ? 400 : settings.customWidth(), settings.customHeight() == null ? 400 : settings.customHeight())));
             }
             if (variant != null && !variant.isBlank()) {
-                return List.of(new VariantSpec(variant, resolveSizeForVariant(variant)));
+                return List.of(new VariantSpec(variant, resolveMinWidthForVariant(variant)));
             }
         }
         return List.of(
@@ -408,44 +460,63 @@ public class ImageUploadService {
                 new VariantSpec("thumbnail", 160));
     }
 
+    /**
+     * Builds the "core" identifier for a file — either the sanitized original
+     * filename, a generated random string, or (in manual mode) nothing, letting
+     * the user-supplied prefix stand alone. This is deliberately just the
+     * middle piece; buildTargetFileName() below combines it with the prefix
+     * and suffix.
+     */
     private String resolveNamingBase(String originalFileName, UploadSettings settings) {
         String baseName = originalFileName.contains(".") ? originalFileName.substring(0, originalFileName.lastIndexOf('.')) : originalFileName;
-        if ("original".equals(settings.namingMode())) {
-            return baseName;
-        }
-        if ("manual".equals(settings.namingMode())) {
-            String normalizedPrefix = settings.prefix() == null ? "" : settings.prefix().trim();
-            return normalizedPrefix.isBlank() ? baseName : normalizedPrefix;
-        }
-        return generateRandomString();
+        return switch (settings.namingMode()) {
+            case "random" -> generateRandomString();
+            case "manual" -> "";
+            default -> baseName; // "original"
+        };
     }
 
-    private String buildTargetFileName(String namingBase, UploadSettings settings, String variant, String extension) {
-        String suffix = resolveSuffix(settings, variant);
-        String middle = generateRandomString(32);
+    /**
+     * Filename structure is exactly three parts, in order:
+     *   [prefix_] + core + [_suffix] + .ext
+     * - prefix: user-supplied (settings.prefix()), added only if non-blank
+     * - core:   the original filename, a random string, or empty — see resolveNamingBase()
+     * - suffix: the variant label ("large"/"medium"/"compact"/"thumbnail"), added
+     *           only if suffixStyle isn't "none"
+     * Any part that's blank is simply omitted rather than leaving a stray
+     * separator behind.
+     */
+    private String buildTargetFileName(String namingBase, UploadSettings settings, String variantLabel, String extension) {
+        String prefix = settings.prefix() == null ? "" : settings.prefix().trim();
+        String suffix = resolveSuffix(settings, variantLabel);
 
-        if (settings.namingMode() != null && "original".equals(settings.namingMode())) {
-            return String.format("%s%s.%s", namingBase, suffix, extension);
+        List<String> parts = new ArrayList<>();
+        if (!prefix.isBlank()) {
+            parts.add(prefix);
         }
-        if (settings.namingMode() != null && "manual".equals(settings.namingMode())) {
-            return String.format("%s_%s%s.%s", namingBase, middle, suffix, extension);
+        if (!namingBase.isBlank()) {
+            parts.add(namingBase);
         }
-        return String.format("%s_%s%s.%s", namingBase, middle, suffix, extension);
+        String base = String.join("_", parts);
+        if (base.isBlank()) {
+            // Every naming mode produced nothing usable (e.g. manual mode with no
+            // prefix given) — fall back to a random string so we still get a valid,
+            // unique filename instead of one that's just ".jpg".
+            base = generateRandomString();
+        }
+
+        return String.format("%s%s.%s", base, suffix, extension);
     }
 
-    private String resolveSuffix(UploadSettings settings, String variant) {
-        String normalizedVariant = variant == null || variant.isBlank() ? null : variant.trim().toLowerCase();
-        String suffix = "";
+    private String resolveSuffix(UploadSettings settings, String variantLabel) {
         if (settings.suffixStyle() != null && "none".equals(settings.suffixStyle())) {
-            return suffix;
+            return "";
         }
-        if (normalizedVariant != null && !normalizedVariant.isBlank()) {
-            suffix = "_" + normalizedVariant;
-        }
-        return suffix;
+        String normalized = variantLabel == null || variantLabel.isBlank() ? null : variantLabel.trim().toLowerCase();
+        return normalized == null ? "" : "_" + normalized;
     }
 
-    private int resolveSizeForVariant(String variant) {
+    private int resolveMinWidthForVariant(String variant) {
         switch (variant) {
             case "large":
                 return 2048;

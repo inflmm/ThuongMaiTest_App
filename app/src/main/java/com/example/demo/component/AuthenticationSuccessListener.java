@@ -1,5 +1,6 @@
 package com.example.demo.component;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.event.EventListener;
 import org.springframework.security.authentication.event.InteractiveAuthenticationSuccessEvent;
 import org.springframework.stereotype.Component;
@@ -9,6 +10,7 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 import com.example.demo.model.User;
 import com.example.demo.repository.UserRepository;
 import com.example.demo.service.SessionLogService;
+import com.example.demo.utils.SecurityUtils;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
@@ -23,9 +25,19 @@ public class AuthenticationSuccessListener {
         this.sessionLogService = sessionLogService;
         this.userRepository = userRepository;
     }
+    @Value("${app.analytics.enabled:true}")
+    private boolean analyticsEnabled;
+
+    @Value("${app.cron.secret-token}")
+    private String cronSecretToken;
 
     @EventListener
     public void onAuthenticationSuccess(InteractiveAuthenticationSuccessEvent event) {
+
+        if (!analyticsEnabled) {
+            return; // Skip analytics tracking if disabled
+        }
+
         ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
 
         if (attributes == null) {
@@ -47,9 +59,15 @@ public class AuthenticationSuccessListener {
             return;
         }
 
-        session.setAttribute("userId", user.getUserId());
-        session.setAttribute("username", user.getUsername());
+        String cronHeader = request.getHeader("X-Cron-Secret");
+        boolean isCronPing = cronHeader != null && cronSecretToken.equals(cronHeader);
 
-        sessionLogService.createAuthenticatedSessionLog(request, user.getUserId(), user.getUsername());
+        String username = (String) session.getAttribute("username");
+        String userId = (String) session.getAttribute("userId");
+        String sessionId = session.getId();
+        String ipAddress = SecurityUtils.getClientIpAddress(request);
+        String userAgent = request.getHeader("User-Agent");
+
+        sessionLogService.createAuthenticatedSessionLog(sessionId, ipAddress, userAgent, isCronPing, userId, username);
     }
 }

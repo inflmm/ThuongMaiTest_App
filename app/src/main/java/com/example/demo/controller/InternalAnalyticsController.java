@@ -21,6 +21,9 @@ public class InternalAnalyticsController {
 
     @Value("${app.cron.secret-token}")
     private String cronSecretToken;
+
+    @Value("${app.analytics.enabled:true}")
+    private boolean analyticsEnabled;
     
     public InternalAnalyticsController(AnalyticsBufferService analyticsBufferService, MemoryMonitorService memoryMonitorService) {
         this.analyticsBufferService = analyticsBufferService;
@@ -47,6 +50,10 @@ public class InternalAnalyticsController {
     public ResponseEntity<String> triggerMemorySnapshot(@RequestHeader(value = "X-Cron-Secret", required = false) String incomingToken) {
         if (isUnauthorized(incomingToken)) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized: Invalid or missing secret token");
+        }
+
+        if (!analyticsEnabled){
+            return ResponseEntity.ok("Analytic disabled");
         }
 
         memoryMonitorService.recordSnapshot(); // Gọi trực tiếp hàm ghi log RAM
