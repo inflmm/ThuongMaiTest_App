@@ -1,4 +1,4 @@
-package com.example.demo.controller;
+package com.example.demo.controller.admin;
 
 import java.util.List;
 import java.util.Map;
@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.example.demo.model.Collection;
 import com.example.demo.service.CollectionService;
 
+// Catalog/content management — shared between ADMIN and EMPLOYEE.
 @RestController
 @RequestMapping("/api/admin/collections")
 public class AdminCollectionController {
@@ -25,6 +26,10 @@ public class AdminCollectionController {
     public AdminCollectionController(CollectionService collectionService) {
         this.collectionService = collectionService;
     }
+
+    // ---------------------------------------------------------------
+    // Reads
+    // ---------------------------------------------------------------
 
     @GetMapping
     public List<Collection> listCollections() {
@@ -37,6 +42,10 @@ public class AdminCollectionController {
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
+
+    // ---------------------------------------------------------------
+    // Writes
+    // ---------------------------------------------------------------
 
     @PostMapping
     public ResponseEntity<?> createCollection(@RequestBody Collection collection) {

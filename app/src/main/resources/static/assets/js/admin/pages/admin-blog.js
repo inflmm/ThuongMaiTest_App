@@ -1,7 +1,6 @@
 /**
  * admin-core.js (Tiếp theo) - Logic cho Module Blog
  */
-let currentSelectedFolder = null; // Lưu thư mục đang chọn
 async function renderBlogModule() {
     const root = document.getElementById('admin-app-root');
 
@@ -82,169 +81,29 @@ async function togglePublish(blogId, checkboxElement) {
     try {
         const response = await fetch(joinUrl(API_BASE_URL, `/api/admin/blogs/${id}/publish`), {
             method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
+            headers: csrfHeaders({ 'Content-Type': 'application/json' }),
             body: JSON.stringify(originalState)
         });
 
-        if (!response.ok) throw new Error("Server error");
+        if (!response.ok) {
+            await handleApiError(response);
+            checkboxElement.checked = !originalState; // Quay về trạng thái cũ
+            return;
+        }
 
         // Cập nhật label
         label.innerText = originalState ? "Công khai" : "Đang ẩn";
         console.log("Cập nhật trạng thái thành công");
 
     } catch (error) {
-        // 2. Rollback nếu lỗi
-        alert("Lỗi: Không thể cập nhật trạng thái bài viết!");
+        // 2. Rollback nếu lỗi kết nối (không phải lỗi HTTP, đã xử lý ở trên)
+        alert("Lỗi: Không thể kết nối đến máy chủ!");
         checkboxElement.checked = !originalState; // Quay về trạng thái cũ
     } finally {
         // 3. Mở khóa
         checkboxElement.disabled = false;
         await loadBlogs();
     }
-}
-
-let folderDataCache = {
-    articles: null,
-    images: null
-}; // Biến lưu trữ cache folder
-
-async function loadFolders(forceRefresh = false, type = 'articles') {
-    let apiUrl = '';
-    let rootPath = '';
-
-    // Gán thủ công vì backend không đồng nhất như bạn nói
-    if (type === 'articles') {
-        apiUrl = '/api/admin/folders';
-        rootPath = 'articles';
-    } else if (type === 'images') {
-        apiUrl = '/api/admin/folders/images/tree';
-        rootPath = 'images';
-    }
-
-    // Nếu đã có cache và không yêu cầu refresh thì không gọi API nữa
-    if (folderDataCache[type] && !forceRefresh) {
-        renderTreeUI(folderDataCache[type], type);
-        return;
-    }
-
-    try {
-        const response = await fetch(joinUrl(API_BASE_URL, apiUrl), { credentials: 'same-origin' });
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
-        }
-        const payload = await response.json().catch(() => []);
-        const paths = Array.isArray(payload) ? payload : [];
-        folderDataCache[type] = buildTree(paths); // Lưu vào cache
-        renderTreeUI(folderDataCache[type], type);
-    } catch (e) {
-        console.error("Lỗi tải thư mục:", e);
-        folderDataCache[type] = {};
-        renderTreeUI(folderDataCache[type], type);
-    }
-}
-
-function buildTree(paths) {
-    const result = {};
-    const safePaths = Array.isArray(paths) ? paths : [];
-    safePaths.forEach(path => {
-        const normalizedPath = String(path || '').trim().replace(/^\/+|\/+$/g, '');
-        if (!normalizedPath) {
-            return;
-        }
-
-        const parts = normalizedPath.split('/').filter(Boolean);
-        let current = result;
-        parts.forEach((part, index) => {
-            const folderPath = parts.slice(0, index + 1).join('/');
-            if (!current[part]) current[part] = { _isFolder: true, _path: folderPath };
-            current = current[part];
-        });
-    });
-    return result;
-}
-
-function renderTreeUI(treeData, type) {
-    // Xác định container dựa trên module đang mở
-    const containerId = (type === 'articles') ? 'folder-list' : 'image-folder-list';
-    const container = document.getElementById(containerId);
-    if (!container) return;
-
-    // Kiểm tra active cho mục "Tất cả"
-    const allActive = (currentSelectedFolder === null) ? 'active' : '';
-    if (type === 'articles') {
-        container.innerHTML = `
-        <div class="folder-item-wrapper ${allActive}" onclick="selectFolder(null)">
-            <span class="content-zone"><i class="fa-solid fa-layer-group"></i> [Tất cả bài viết]</span>
-        </div>
-    `;
-    } else if (type === 'images') {
-        container.innerHTML = `
-        <div class="folder-item-wrapper ${allActive}" onclick="loadImagesInFolder('')">
-            <span class="content-zone"><i class="fa-solid fa-layer-group"></i> [Thư mục gốc]</span>
-        </div>
-    `;
-    }
-
-
-    renderTreeRecursive(treeData, container, 0, type);
-}
-
-function renderTreeRecursive(node, container, level, type) {
-    Object.keys(node).forEach(key => {
-        if (key.startsWith('_')) return;
-
-        const nodeData = node[key];
-        const fullPath = nodeData._path;
-        const item = document.createElement('div');
-        item.className = 'folder-group';
-        const isActive = (currentSelectedFolder === fullPath) ? 'active' : '';
-
-        item.innerHTML = `
-            <div class="folder-item-wrapper ${isActive ? 'active' : ''}" style="margin-left: ${level * 12}px" data-path="${fullPath}">
-                <div class="toggle-zone">
-                    <i class="fa-solid fa-chevron-right"></i>
-                </div>
-                <div class="content-zone">
-                    <i class="fa-regular fa-folder"></i>
-                    <span>${key}</span>
-                </div>
-            </div>
-            <div class="sub-folders" style="display: none;"></div>
-        `;
-
-        const toggleBtn = item.querySelector('.toggle-zone');
-        const contentBtn = item.querySelector('.content-zone');
-        const subContainer = item.querySelector('.sub-folders');
-        const icon = toggleBtn.querySelector('i');
-
-        // Logic Toggle (Chỉ xoay icon và hiện con)
-        toggleBtn.onclick = (e) => {
-            e.stopPropagation();
-            const isExpanded = subContainer.style.display === 'block';
-            subContainer.style.display = isExpanded ? 'none' : 'block';
-            toggleBtn.style.transform = isExpanded ? 'rotate(0deg)' : 'rotate(90deg)';
-        };
-
-        // Logic Select (Nhấn vào tên thư mục)
-        contentBtn.onclick = (e) => {
-            e.stopPropagation();
-
-            // Cập nhật Highlight UI (áp dụng cho cả 2 loại)
-            const listId = (type === 'articles') ? '#folder-list' : '#image-folder-list';
-            document.querySelectorAll(`${listId} .folder-info, ${listId} .folder-item`).forEach(el => el.classList.remove('active'));
-            contentBtn.classList.add('active');
-
-            // Phân luồng xử lý dữ liệu
-            if (type === 'articles') {
-                selectFolder(fullPath); // Logic của Blog (truyền ID/Name)
-            } else if (type === 'images') {
-                loadImagesInFolder(fullPath); // Logic của Ảnh (truyền /images/...)
-            }
-        };
-
-        container.appendChild(item);
-        renderTreeRecursive(node[key], subContainer, level + 1, type);
-    });
 }
 
 async function loadBlogs(page = 0) {
@@ -259,6 +118,10 @@ async function loadBlogs(page = 0) {
         }
 
         const response = await fetch(url.toString());
+        if (!response.ok) {
+            await handleApiError(response);
+            return;
+        }
         const data = await response.json();
 
         // 1. Vẽ bảng dữ liệu
@@ -383,45 +246,6 @@ function renderPagination(data, type = 'normal') {
     container.innerHTML = html;
 }
 
-function selectFolder(folderPath) {
-    currentSelectedFolder = folderPath;
-    updateFolderActiveUI(folderPath);
-
-    const btnAdd = document.getElementById('btn-add-blog');
-    const btnDelFolder = document.getElementById('btn-delete-folder');
-
-    // Chỉ bật các nút này khi không phải là "[Tất cả bài viết]" (null)
-    const isSelected = folderPath !== null;
-    if (btnAdd) btnAdd.disabled = !isSelected;
-    if (btnDelFolder) btnDelFolder.disabled = !isSelected;
-
-    document.getElementById('table-folder-title').innerText = isSelected ? `Thư mục: ${folderPath}` : "Tất cả bài viết";
-
-    loadBlogs(0);
-}
-
-// Hàm bổ trợ để xử lý active trực tiếp trên DOM
-function updateFolderActiveUI(folderPath) {
-    // Xóa active của tất cả các folder đang có
-    document.querySelectorAll('.folder-item-wrapper').forEach(el => {
-        el.classList.remove('active');
-    });
-
-    // Nếu folderPath là null, active mục "Tất cả bài viết" (thường là mục đầu tiên)
-    if (folderPath === null) {
-        const allItemsBtn = document.querySelector('.folder-item-wrapper[onclick*="selectFolder(null)"]');
-        if (allItemsBtn) allItemsBtn.classList.add('active');
-        return;
-    }
-
-    // Tìm đúng element có chứa path tương ứng
-    // Lưu ý: Lúc renderTreeRecursive, bạn nên gán data-path cho element để dễ tìm
-    const target = document.querySelector(`.folder-item-wrapper[data-path="${folderPath}"]`);
-    if (target) {
-        target.classList.add('active');
-    }
-}
-
 function deleteBlog(blogId, blogTitle) {
     AdminApp.showModal({
         title: 'Xác nhận xóa',
@@ -433,127 +257,16 @@ function deleteBlog(blogId, blogTitle) {
         onConfirm: async () => {
             try {
                 const response = await fetch(joinUrl(API_BASE_URL, `/api/admin/blogs/${blogId}`), {
-                    method: 'DELETE'
+                    method: 'DELETE',
+                    headers: csrfHeaders()
                 });
-                if (response.ok) {
-                    loadBlogs(0); // Load lại danh sách sau khi xóa
+                if (!response.ok) {
+                    await handleApiError(response);
+                    return;
                 }
+                loadBlogs(0); // Load lại danh sách sau khi xóa
             } catch (error) {
                 alert("Lỗi khi xóa bài viết");
-            }
-        }
-    });
-}
-
-function createNewFolder() {
-    // Chuẩn bị danh sách gợi ý từ folderDataCache (đã có sẵn ở cây thư mục)
-    const folderPaths = getAllPathsFromCache(folderDataCache['articles']);
-    const optionsHTML = folderPaths.map(path =>
-        `<option value="${path}" ${path === currentSelectedFolder ? 'selected' : ''}>${path}</option>`
-    ).join('');
-
-    const bodyHTML = `
-        <div class="form-group">
-            <label>Thư mục cha:</label>
-            <select id="parent-folder-path" class="form-control">
-                <option value="">[Thư mục gốc]</option>
-                ${optionsHTML}
-            </select>
-        </div>
-        <div class="form-group" style="margin-top: 15px;">
-            <label>Tên thư mục mới:</label>
-            <input type="text" id="new-folder-name" class="form-control" 
-                   placeholder="new folder name">
-        </div>
-    `;
-
-    AdminApp.showModal({
-        id: 'folder-modal',
-        title: 'Thêm thư mục mới',
-        bodyHTML: bodyHTML,
-        confirmText: 'Tạo thư mục',
-        onConfirm: async () => {
-            const parent = document.getElementById('parent-folder-path').value;
-            const name = document.getElementById('new-folder-name').value.trim();
-
-            if (!name) return alert("Vui lòng nhập tên thư mục");
-
-            // Xử lý nối đường dẫn tránh nhập sai
-            const fullPath = parent ? `${parent}/${name}` : name;
-
-            try {
-                const response = await fetch(joinUrl(API_BASE_URL, `/api/admin/folders?path=${encodeURIComponent(fullPath)}`), {
-                    method: 'POST'
-                });
-                if (response.ok) {
-                    await loadFolders(true); // Load lại cây thư mục (force refresh)
-                } else {
-                    const msg = await response.text();
-                    alert("Lỗi: " + msg);
-                }
-            } catch (error) {
-                alert("Không thể kết nối đến máy chủ");
-            }
-        }
-    });
-}
-
-// Hàm bổ trợ lấy tất cả đường dẫn từ Object Tree của bạn
-/**
- * @param {Object} node - Nhánh cache cụ thể (folderDataCache.articles hoặc .images)
- * @param {string} rootPath - Tiền tố muốn lọc (ví dụ: 'articles' hoặc 'images')
- */
-function getAllPathsFromCache(node, rootPath = '') {
-    // Nếu nhánh cache chưa được khởi tạo (null hoặc undefined), trả về mảng rỗng thay vì báo lỗi
-    if (!node || typeof node !== 'object') return [];
-
-    let paths = [];
-
-    Object.keys(node).forEach(key => {
-        // Bỏ qua các metadata bắt đầu bằng dấu gạch dưới
-        if (key.startsWith('_')) return;
-
-        const item = node[key];
-
-        // Kiểm tra nếu node này có _path và path đó bắt đầu bằng rootPath
-        if (item._path && (rootPath === '' || item._path.startsWith(rootPath))) {
-            paths.push(item._path);
-        }
-
-        // Đệ quy xuống các thư mục con
-        const subPaths = getAllPathsFromCache(item, rootPath);
-        paths = paths.concat(subPaths);
-    });
-
-    // Loại bỏ trùng lặp nếu có và sắp xếp cho đẹp
-    return [...new Set(paths)].sort();
-}
-
-function confirmDeleteFolder() {
-    if (!currentSelectedFolder) return;
-
-    AdminApp.showModal({
-        title: 'Xác nhận xóa thư mục',
-        bodyHTML: `
-            <p>Bạn có chắc chắn muốn xóa thư mục: <strong class="text-danger">${currentSelectedFolder}</strong>?</p>
-            <p class="text-muted small">* Lưu ý: Chỉ có thể xóa thư mục hoàn toàn trống.</p>
-        `,
-        confirmText: 'Xác nhận xóa',
-        onConfirm: async () => {
-            try {
-                const response = await fetch(joinUrl(API_BASE_URL, `/api/admin/folders?path=${encodeURIComponent(currentSelectedFolder)}`), {
-                    method: 'DELETE'
-                });
-
-                if (response.ok) {
-                    currentSelectedFolder = null; // Reset về gốc
-                    await loadFolders(true); // Refresh cây thư mục
-                } else {
-                    const errorMsg = await response.text();
-                    alert(errorMsg); // Hiển thị thông báo "Thư mục không trống" từ Backend
-                }
-            } catch (error) {
-                alert("Lỗi kết nối khi xóa thư mục");
             }
         }
     });
@@ -647,22 +360,21 @@ async function saveBlogToServer(blogData, content, method) {
 
         const response = await fetch(url.toString(), {
             method: method,
-            headers: {
+            headers: csrfHeaders({
                 'Content-Type': 'application/json'
-            },
+            }),
             body: JSON.stringify(blogData)
         });
 
-        if (response.ok) {
-            alert(method === 'POST' ? "Tạo thành công!" : "Cập nhật thành công!");
-            // Gọi hàm render lại danh sách bài viết nếu có
-            loadBlogs();
-            return true; // Để Modal tự đóng
-        } else {
-            const errorText = await response.text();
-            alert("Lỗi server: " + errorText);
+        if (!response.ok) {
+            await handleApiError(response);
             return false;
         }
+
+        alert(method === 'POST' ? "Tạo thành công!" : "Cập nhật thành công!");
+        // Gọi hàm render lại danh sách bài viết nếu có
+        loadBlogs();
+        return true; // Để Modal tự đóng
     } catch (error) {
         console.error("Fetch Error:", error);
         alert("Không thể kết nối đến server.");
@@ -765,8 +477,6 @@ function openCreateBlogModal() {
 let quill; // Biến toàn cục để thao tác
 // Biến toàn cục hoặc biến trong module để giữ vị trí con trỏ
 let lastQuillRange = null;
-// Ghi nhớ URL ảnh đang được chọn trong image explorer để confirm callback có thể trả về URL công khai trực tiếp.
-let selectedExplorerImageUrl = '';
 // 2. Định nghĩa hàm đăng ký Format (Để tránh lỗi Quill undefined)
 function registerQuillFormats() {
     // Kiểm tra xem class Quill của thư viện đã sẵn sàng chưa
@@ -870,182 +580,11 @@ function insertImageToEditor(path) {
     quill.setSelection(range.index + 1);
 }
 
-// Hàm khởi tạo Image Explorer
-async function openImageExplorer(onSelectCallback) {
-    const html = `
-        <div class="image-explorer-container">
-            <aside id="exp-nav" class="explorer-nav">
-                <button onclick="toggleExpNav()" class="btn-sm mb-2"><i class="fa-solid fa-bars"></i></button>
-                <div class="folder-header">
-                    <div class="folder-header-title">Thư mục ảnh</div>
-                </div>
-                <div id="image-folder-list">
-                    <div class="folder-item active" onclick="selectFolder(null)">[Tất cả bài viết]</div>
-                </div>
-            </aside>
-            <section id="exp-files" class="explorer-main">
-                <p class="text-muted">Chọn một thư mục để xem ảnh</p>
-            </section>
-            <aside id="exp-preview" class="explorer-preview">
-                <div class="exp-preview-toolbox">
-                    <button onclick="togglePreviewBox()" class="btn-explorer-preview btn-sm mb-2"><i class="fa-solid fa-bars"></i></button>
-                </div>
-                <div id="preview-box">
-                    <i class="fa-regular fa-image fa-4x text-muted"></i>
-                    <p>Xem trước ảnh</p>
-                </div>
-            </aside>
-        </div>
-    `;
-
-    const subHeader = `
-        <div id="image-explorer-path-display" class="path-display">
-            <div>
-                <span>Đường dẫn: </span>
-                <span id="image-explorer-link">/images</span>
-            </div> 
-        </div>
-    `;
-
-    const toolbox = `
-        <button class="btn-create w-100 mt-2" onclick="openUploadOverlay()">
-                <i class="fa-solid fa-plus"></i> Upload ảnh mới
-        </button>
-    `;
-
-    AdminApp.showModal({
-        id: 'image-explorer-modal',
-        title: 'Thư viện hình ảnh',
-        bodyHTML: html,
-        subHeader: subHeader,
-        toolboxHTML: toolbox,
-        width: '95%',
-        confirmText: 'Chèn ảnh này',
-        onConfirm: () => {
-            // Prefer the chosen image's direct public URL; fall back to the display path if no URL was selected.
-            const pathDisplay = document.getElementById('image-explorer-link');
-            let finalPath = pathDisplay ? pathDisplay.innerText : '';
-            finalPath = finalPath.replace(/\s\/\s/g, '/').trim();
-
-            if (selectedExplorerImageUrl && onSelectCallback) {
-                onSelectCallback(selectedExplorerImageUrl);
-                return true;
-            }
-
-            if (finalPath && finalPath !== 'images' && onSelectCallback) {
-                onSelectCallback(finalPath);
-                return true; // Đóng modal
-            } else {
-                alert("Vui lòng chọn một file ảnh cụ thể!");
-                return false; // Không cho đóng modal
-            }
-        }
-    });
-
-    await loadFolders(false, 'images');
-    await loadImagesInFolder('');
-}
-
-function toggleExpNav() {
-    document.getElementById('exp-nav').classList.toggle('collapsed');
-}
-function togglePreviewBox() {
-    document.getElementById('exp-preview').classList.toggle('collapsed');
-}
-
-// Hàm load file ảnh từ Backend
-async function loadImagesInFolder(path) {
-    const normalizedPath = (path || '').replace(/^\/+|\/+$/g, '');
-    currentSelectedFolder = normalizedPath;
-    updateFolderActiveUI(normalizedPath);
-
-    const mainArea = document.getElementById('exp-files');
-    mainArea.innerHTML = '<div class="p-3">Đang tải...</div>';
-
-    try {
-        // The backend now returns each image entry with a publicUrl, so the explorer can render the CDN URL directly.
-        const url = joinUrl(API_BASE_URL, `/api/admin/folders/images/files?path=${encodeURIComponent(normalizedPath)}`);
-        const response = await fetch(url);
-        const files = await response.json();
-
-        selectedExplorerImageUrl = '';
-        updateImageExplorerPath(normalizedPath);
-
-        if (!files || files.length === 0) {
-            mainArea.innerHTML = `
-                    <div class="empty-image-folder-text">
-                        <i class="fa-solid fa-folder-open" style="font-size: 2rem; display: block; margin: auto;"></i>
-                        Thư mục này hiện đang rỗng.
-                    </div>
-                    `;
-            return;
-        }
-
-        mainArea.innerHTML = files.map(file => {
-            const fileName = file.name || file;
-            const imagePath = normalizedPath ? `/${normalizedPath}/${fileName}` : `/${fileName}`;
-            // Prefer the direct public URL from the backend; fall back to the legacy app route only if needed.
-            const directUrl = file.publicUrl || file.url || '';
-            const fullUrl = directUrl || joinUrl(API_BASE_URL, 'images' + imagePath.replace(/\/+/g, '/'));
-
-            return `
-                <div class="img-item-card" data-public-url="${directUrl}" onclick="previewImage('${imagePath}', this)">
-                    <img class="exp-image-item" src="${fullUrl}">
-                    <div class="exp-image-text">${fileName}</div>
-                </div>
-            `;
-        }).join('');
-    } catch (error) {
-        console.log(error);
-        mainArea.innerHTML = '<div class="p-3 text-danger">Lỗi tải danh sách ảnh</div>';
-    }
-}
-
-// Hàm bổ trợ đổi size file
-function formatBytes(bytes) {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024, sizes = ['B', 'KB', 'MB', 'GB'], i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-}
-
-function previewImage(path, element) {
-    // 1. Highlight item
-    document.querySelectorAll('.img-item-card').forEach(el => el.classList.remove('selected'));
-    element.classList.add('selected');
-
-    // 2. Cập nhật đường dẫn lên Sub-header
-    updateImageExplorerPath(path);
-
-    // 3. Render preview using the direct public URL that the backend already provided for the selected image.
-    const fullUrl = element.dataset.publicUrl || '';
-    selectedExplorerImageUrl = fullUrl;
-    const previewBox = document.getElementById('preview-box');
-
-    previewBox.innerHTML = `
-        <div class="preview-sticky">
-            <img src="${fullUrl}" class="img-fluid rounded border" style="max-width: 100%; height: auto;">
-        </div>
-    `;
-
-}
-
-function updateImageExplorerPath(path) {
-    const pathDisplay = document.getElementById('image-explorer-link');
-
-    if (pathDisplay) {
-        const normalizedPath = (path || '').replace(/^\/+|\/+$/g, '');
-        const cleanDisplay = normalizedPath.split('/').filter(Boolean).join('/');
-        pathDisplay.innerText = cleanDisplay ? `images/${cleanDisplay}` : 'images';
-    }
-}
-
 // Hàm callback để nhận đường dẫn ảnh và hiển thị preview
 function setBlogThumbnail(path) {
     const input = document.getElementById('blog-thumb-path');
     const previewWrap = document.getElementById('blog-thumb-preview-wrap');
     const previewImg = document.getElementById('blog-thumb-preview-img');
-
-    // Accept either a direct URL or a local /images/... path, then use the same value for preview.
     const normalizedPath = path && /^(https?:)?\/\//i.test(path) ? path : (path ? (path.startsWith('/') ? path : '/' + path) : '');
 
     if (input) input.value = normalizedPath;
@@ -1064,23 +603,26 @@ async function openBlogModal(blogId = null) {
         title: '',
         slug: '',
         thumbnail: '',
-        contentPath: currentSelectedFolder || 'articles/', // Ưu tiên folder đang xem
+        contentPath: currentSelectedFolder || 'articles/',
         content: '',
         publishTime: '',
         createdAt: null,
         updatedAt: null
     };
 
-    // 1. Nếu là UPDATE, fetch dữ liệu từ Server theo ID
     if (blogId) {
         try {
             AdminApp.showLoading(true);
             const response = await fetch(joinUrl(API_BASE_URL, `/api/admin/blogs/${blogId}`)); // API bạn đã chỉnh
-            if (!response.ok) throw new Error("Không lấy được dữ liệu bài viết");
+            if (!response.ok) {
+                await handleApiError(response);
+                AdminApp.showLoading(false);
+                return;
+            }
             blogData = await response.json();
             //console.log(blogData.updated_time);
         } catch (error) {
-            alert(error.message);
+            alert("Không thể kết nối đến máy chủ.");
             AdminApp.showLoading(false);
             return;
         } finally {
@@ -1213,6 +755,10 @@ async function handleBlogSearch(page = 0) {
         params.append('size', 10);
 
         const response = await fetch(joinUrl(API_BASE_URL, `/api/admin/blogs/search?${params.toString()}`));
+        if (!response.ok) {
+            await handleApiError(response);
+            return;
+        }
         const data = await response.json();
 
         // Render kết quả ra bảng chính
@@ -1328,6 +874,10 @@ async function executeAdvancedSearch(page = 0) {
 
     try {
         const response = await fetch(joinUrl(API_BASE_URL, `/api/admin/blogs/search?${params.toString()}`));
+        if (!response.ok) {
+            await handleApiError(response);
+            return;
+        }
         const data = await response.json();
 
         // Tái sử dụng hàm render đã chỉnh sửa ở bước trước
@@ -1348,348 +898,6 @@ async function resetAdvancedFields() {
     document.getElementById('adv-search-results-body').innerHTML = '<tr><td colspan="5" class="text-center">Chưa có dữ liệu</td></tr>';
     document.getElementById('adv-search-pagination').innerHTML = '';
     document.getElementById('adv-search-results-info').innerText = '';
-}
-
-// Biến toàn cục lưu trữ danh sách file đang sẵn sàng upload
-let selectedUploadFiles = [];
-
-function openUploadOverlay() {
-    // 1. TỐI ƯU THEO Ý BẠN: Không ép gán lại biến gốc, chỉ tính toán chuỗi hiển thị UI
-    const displayFolder = currentSelectedFolder ? currentSelectedFolder : "Thư mục gốc";
-
-    // 2. DỰNG HTML THUẦN CSS (Sử dụng cấu trúc AdminApp.showModal dùng chung)
-    AdminApp.showModal({
-        id: 'upload-image-modal',
-        title: '<i class="fa-solid fa-cloud-arrow-up"></i> Tải ảnh mới lên hệ thống',
-        bodyHTML: `
-        <div class="upload-overlay-container">
-            <div class="upload-overlay-wrapper">
-                
-                    <div class="upload-form-group">
-                        <label class="upload-label">Thư mục đích hiện tại:</label>
-                        <div class="upload-folder-display">
-                            <i class="fa-solid fa-folder"></i> <span>${displayFolder}</span>
-                        </div>
-                    </div>
-
-                    <div class="upload-toggle-container">
-                        <label class="upload-label-inline">Chế độ upload:</label>
-                        <div class="upload-switch-wrapper">
-                            <label class="upload-switch">
-                                <input type="checkbox" id="upload-mode-toggle" onchange="toggleUploadMode(this.checked)">
-                                <span class="upload-slider"></span>
-                            </label>
-                            <span id="toggle-label" class="upload-toggle-text mode-raw">Ảnh gốc (không resize / không chuyển định dạng)</span>
-                        </div>
-                    </div>
-
-                    <div id="upload-advanced-controls" style="display: none;">
-                        <div class="upload-form-grid">
-                            <div class="upload-form-group">
-                                <label class="upload-label">Định dạng đầu ra:</label>
-                                <select id="upload-image-format-select" style="width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; background-color: #fff; outline: none; cursor: pointer;">
-                                    <option value="webp">WebP (mặc định)</option>
-                                    <option value="jpg">JPG</option>
-                                </select>
-                            </div>
-
-                            <div class="upload-form-group">
-                                <label class="upload-label">Chất lượng nén:</label>
-                                <input type="range" id="upload-quality-slider" min="50" max="100" value="80" style="width: 100%; margin-top: 4px;">
-                                <div style="display:flex; justify-content:space-between; align-items:center; margin-top: 6px; font-size: 12px; color: #64748b;">
-                                    <span>50%</span>
-                                    <span id="upload-quality-value" style="font-weight: 600; color: #0f172a;">80%</span>
-                                    <span>100%</span>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div id="webp-note-helper" style="color: #d97706; font-size: 11px; line-height: 1.4;">
-                            <i class="fa-solid fa-triangle-exclamation"></i> <strong>Lưu ý:</strong> WebP là định dạng mặc định và phù hợp cho trang web vì tối ưu dung lượng và chất lượng ảnh. Tuy nhiên server host không cài libwebp, có thể chọn JPG thay thế.
-                        </div>
-
-                        <div class="upload-form-group">
-                            <label class="upload-label">Cách tạo ảnh:</label>
-                            <select id="upload-resize-mode-select" style="width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; background-color: #fff; outline: none; cursor: pointer;">
-                                <option value="all4">Tạo 4 kích thước chuẩn (large, medium, compact, thumbnail)</option>
-                                <option value="specific">Tạo 1 kích thước cụ thể</option>
-                            </select>
-                        </div>
-
-                        <div class="upload-form-group">
-                            <label class="upload-label">Kích thước mục tiêu:</label>
-                            <select id="upload-variant-select" style="width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; background-color: #fff; outline: none; cursor: pointer;">
-                                <option value="large">Large</option>
-                                <option value="medium">Medium</option>
-                                <option value="compact">Compact</option>
-                                <option value="thumbnail">Thumbnail</option>
-                                <option value="custom">Custom</option>
-                            </select>
-                        </div>
-
-                        <div id="upload-custom-size-wrapper" class="upload-form-grid" style="display: none; max-width: 97%;">
-                            <div class="upload-form-group">
-                                <label class="upload-label">Chiều rộng (px):</label>
-                                <input type="number" id="upload-custom-width" class="upload-input-text" style="width: 100%;" min="1" value="1200">
-                            </div>
-                            <div class="upload-form-group">
-                                <label class="upload-label">Chiều cao (px):</label>
-                                <input type="number" id="upload-custom-height" class="upload-input-text" style="width: 100%;" min="1" value="1200">
-                            </div>
-                        </div>
-
-                        <div class="upload-form-group">
-                            <label class="upload-label">Cách đặt tên:</label>
-                            <select id="upload-naming-mode-select" style="width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; background-color: #fff; outline: none; cursor: pointer;">
-                                <option value="original">Giữ tên gốc</option>
-                                <option value="random">Tạo prefix ngẫu nhiên</option>
-                                <option value="manual">Dùng prefix tự nhập</option>
-                            </select>
-                        </div>
-
-                        <div id="upload-prefix-wrapper" class="upload-form-group" style="display: none;">
-                            <label class="upload-label">Prefix tùy chỉnh:</label>
-                            <input type="text" id="upload-prefix-input" class="upload-input-text" style="width: 97%;" placeholder="Ví dụ: abcxyz">
-                        </div>
-
-                        <div class="upload-form-group">
-                            <label class="upload-label">Hậu tố:</label>
-                            <select id="upload-suffix-style-select" style="width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; background-color: #fff; outline: none; cursor: pointer;">
-                                <option value="size">Thêm hậu tố kích thước (_large, _custom...)</option>
-                                <option value="none">Không thêm hậu tố</option>
-                            </select>
-                        </div>
-
-                        
-                    </div>
-                </div>
-
-                <div class="upload-preview-divider">
-                    <div class="upload-form-group">
-                        <label class="upload-label">Chọn file từ máy tính:</label>
-                        <div class="upload-file-zone">
-                            <input type="file" id="modal-file-input" multiple accept="image/webp, image/jpeg, image/png" onchange="handleModalFileSelect(this)">
-                            <label for="modal-file-input" class="upload-file-trigger">
-                                <i class="fa-solid fa-images"></i> Bấm để chọn hoặc kéo thả nhiều ảnh vào đây...
-                            </label>
-                        </div>
-                    </div>
-
-                    <div class="upload-preview-wrapper">
-                        <div id="upload-preview-list" class="upload-preview-list">
-                            <span class="upload-empty-text" id="no-file-text">Chưa có tệp tin nào được chọn</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-        `,
-        confirmText: 'Bắt đầu Tải lên',
-        onConfirm: async () => {
-            await executeUploadFlow();
-        }
-    });
-
-    // Khởi tạo lại mảng lưu file khi mở modal
-    selectedUploadFiles = [];
-
-    // Đặt đoạn này ngay sau khi Modal đã được chèn vào DOM (khi mở Modal)
-    document.getElementById('upload-image-format-select')?.addEventListener('change', function (e) {
-        const helper = document.getElementById('webp-note-helper');
-        if (helper) {
-            helper.style.display = (e.target.value === 'webp') ? 'block' : 'none';
-        }
-    });
-
-    document.getElementById('upload-quality-slider')?.addEventListener('input', function (e) {
-        const valueLabel = document.getElementById('upload-quality-value');
-        if (valueLabel) {
-            valueLabel.textContent = `${e.target.value}%`;
-        }
-    });
-
-    document.getElementById('upload-resize-mode-select')?.addEventListener('change', function (e) {
-        const variantSelect = document.getElementById('upload-variant-select');
-        const customWrapper = document.getElementById('upload-custom-size-wrapper');
-        const isSpecific = e.target.value === 'specific';
-        if (variantSelect) {
-            variantSelect.disabled = !isSpecific;
-        }
-        if (customWrapper) {
-            customWrapper.style.display = (isSpecific && variantSelect?.value === 'custom') ? 'grid' : 'none';
-        }
-    });
-
-    document.getElementById('upload-variant-select')?.addEventListener('change', function (e) {
-        const customWrapper = document.getElementById('upload-custom-size-wrapper');
-        if (customWrapper) {
-            customWrapper.style.display = (e.target.value === 'custom') ? 'grid' : 'none';
-        }
-    });
-
-    document.getElementById('upload-naming-mode-select')?.addEventListener('change', function (e) {
-        const prefixWrapper = document.getElementById('upload-prefix-wrapper');
-        if (prefixWrapper) {
-            prefixWrapper.style.display = (e.target.value === 'manual') ? 'block' : 'none';
-        }
-    });
-}
-
-function toggleUploadMode(isResizeMode) {
-    const label = document.getElementById('toggle-label');
-    const advancedControls = document.getElementById('upload-advanced-controls');
-
-    if (isResizeMode) {
-        label.innerText = 'Xử lý ảnh (resize / chuyển định dạng)';
-        label.className = 'upload-toggle-text mode-product';
-        if (advancedControls) advancedControls.style.display = 'block';
-    } else {
-        label.innerText = 'Ảnh gốc (không resize / không chuyển định dạng)';
-        label.className = 'upload-toggle-text mode-raw';
-        if (advancedControls) advancedControls.style.display = 'none';
-    }
-}
-
-// 4. KIỂM TRA ĐỊNH DẠNG/DUNG LƯỢNG VÀ TẠO ẢNH PREVIEW NHỎ
-function handleModalFileSelect(input) {
-    const previewList = document.getElementById('upload-preview-list');
-    const noFileText = document.getElementById('no-file-text');
-    const MAX_SIZE_MB = 10;
-
-    if (!input.files || input.files.length === 0) return;
-    if (noFileText) noFileText.remove();
-
-    const incomingFiles = Array.from(input.files);
-    const currentTotalBytes = selectedUploadFiles.reduce((sum, file) => sum + (file ? file.size : 0), 0);
-    const incomingBytes = incomingFiles.reduce((sum, file) => sum + file.size, 0);
-
-    if (currentTotalBytes + incomingBytes > MAX_SIZE_MB * 1024 * 1024) {
-        alert(`Tổng dung lượng vượt quá ${MAX_SIZE_MB}MB. Vui lòng chọn ít file hơn hoặc giảm kích thước ảnh.`);
-        return;
-    }
-
-    incomingFiles.forEach(file => {
-        if (file.size > MAX_SIZE_MB * 1024 * 1024) {
-            alert(`File "${file.name}" dung lượng quá lớn! Vui lòng chọn file dưới ${MAX_SIZE_MB}MB.`);
-            return;
-        }
-
-        selectedUploadFiles.push(file);
-        const objectUrl = URL.createObjectURL(file);
-        const fileSizeInMB = (file.size / (1024 * 1024)).toFixed(2);
-
-        // Render dòng item ảnh thuần HTML/CSS
-        const itemRow = document.createElement('div');
-        itemRow.className = "upload-preview-item";
-        itemRow.id = `upload-item-${selectedUploadFiles.length - 1}`;
-
-        itemRow.innerHTML = `
-            <div class="upload-item-info">
-                <img src="${objectUrl}" class="upload-item-thumb">
-                <div class="upload-item-meta">
-                    <span class="upload-item-name" title="${file.name}">${file.name}</span>
-                    <span class="upload-item-size">${fileSizeInMB} MB</span>
-                </div>
-            </div>
-            <button class="upload-item-remove-btn" onclick="removeSelectedFileFromUpload(${selectedUploadFiles.length - 1}, '${objectUrl}')" type="button">
-                <i class="fa-solid fa-trash-can"></i>
-            </button>
-        `;
-        previewList.appendChild(itemRow);
-    });
-
-    input.value = ''; // Giải phóng input
-}
-
-function removeSelectedFileFromUpload(index, objectUrl) {
-    const row = document.getElementById(`upload-item-${index}`);
-    if (row) row.remove();
-
-    URL.revokeObjectURL(objectUrl); // Thu hồi bộ nhớ ảnh ảo
-    selectedUploadFiles[index] = null; // Đánh dấu xóa
-
-    const previewList = document.getElementById('upload-preview-list');
-    if (previewList.children.length === 0) {
-        previewList.innerHTML = `<span class="upload-empty-text" id="no-file-text">Chưa có tệp tin nào được chọn</span>`;
-    }
-}
-
-// 5. ĐỒNG BỘ ĐẨY FORM DATA QUA API FETCH
-async function executeUploadFlow() {
-    const finalFiles = selectedUploadFiles.filter(f => f !== null);
-
-    if (finalFiles.length === 0) {
-        alert("Vui lòng chọn ít nhất một file ảnh!");
-        return;
-    }
-
-    const formData = new FormData();
-
-    finalFiles.forEach(file => {
-        formData.append("files", file);
-    });
-
-    formData.append("folder", currentSelectedFolder ? currentSelectedFolder : "");
-
-    const isResizeMode = document.getElementById('upload-mode-toggle')?.checked;
-    let targetEndpoint = "/api/admin/images/raw-upload";
-
-    if (isResizeMode) {
-        const formatValue = document.getElementById('upload-image-format-select')?.value || 'webp';
-        const qualityValue = parseInt(document.getElementById('upload-quality-slider')?.value || '85', 10);
-        const resizeModeValue = document.getElementById('upload-resize-mode-select')?.value || 'all4';
-        const variantValue = document.getElementById('upload-variant-select')?.value || 'large';
-        const customWidthValue = parseInt(document.getElementById('upload-custom-width')?.value || '0', 10);
-        const customHeightValue = parseInt(document.getElementById('upload-custom-height')?.value || '0', 10);
-        const namingModeValue = document.getElementById('upload-naming-mode-select')?.value || 'original';
-        const prefixValue = document.getElementById('upload-prefix-input')?.value || '';
-        const suffixStyleValue = document.getElementById('upload-suffix-style-select')?.value || 'size';
-
-        formData.append("format", formatValue);
-        formData.append("quality", String(qualityValue));
-        formData.append("resizeMode", resizeModeValue);
-        formData.append("variant", variantValue);
-        if (variantValue === 'custom' && customWidthValue > 0) {
-            formData.append("customWidth", String(customWidthValue));
-        }
-        if (variantValue === 'custom' && customHeightValue > 0) {
-            formData.append("customHeight", String(customHeightValue));
-        }
-        formData.append("namingMode", namingModeValue);
-        formData.append("prefix", prefixValue);
-        formData.append("suffixStyle", suffixStyleValue);
-
-        targetEndpoint = "/api/admin/images/product-upload";
-    }
-
-    if (typeof AdminApp.showLoading === 'function') AdminApp.showLoading(true);
-
-    try {
-        const response = await fetch(joinUrl(API_BASE_URL, targetEndpoint), {
-            method: "POST",
-            body: formData
-        });
-
-        const result = await response.json();
-
-        if (response.ok && result.success) {
-            alert(result.message || "Tải tài nguyên lên server thành công!");
-
-            // Tìm nút đóng modal dùng chung của bạn để hạ màn hình
-            const closeBtn = document.querySelector('.modal-header .close') || document.querySelector('[data-dismiss="modal"]');
-            if (closeBtn) closeBtn.click();
-
-            // Refresh lại thư mục
-            loadImagesInFolder(currentSelectedFolder);
-        } else {
-            alert("Lỗi hệ thống: " + (result.message || "Không thể thực thi."));
-        }
-    } catch (error) {
-        console.error("Lỗi API kết nối:", error);
-        alert("Mất kết nối tới máy chủ API Spring Boot.");
-    } finally {
-        if (typeof AdminApp.showLoading === 'function') AdminApp.showLoading(false);
-    }
 }
 
 // Đăng ký thay đổi phần tử blogs của đối tượng ModuleRegistry

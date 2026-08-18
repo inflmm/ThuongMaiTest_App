@@ -1,10 +1,9 @@
-package com.example.demo.controller;
+package com.example.demo.controller.admin;
 
 import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -26,15 +25,22 @@ import com.example.demo.model.Blog;
 import com.example.demo.repository.BlogRepository;
 import com.example.demo.service.BlogService;
 
+// Blog/content management — shared between ADMIN and EMPLOYEE.
 @RestController
 @RequestMapping("/api/admin")
 public class AdminController {
 
-	@Autowired
-    private BlogService blogService;
+    private final BlogService blogService;
+    private final BlogRepository blogRepository;
 
-    @Autowired
-    private BlogRepository blogRepository;
+    public AdminController(BlogService blogService, BlogRepository blogRepository) {
+        this.blogService = blogService;
+        this.blogRepository = blogRepository;
+    }
+
+    // ---------------------------------------------------------------
+    // Reads
+    // ---------------------------------------------------------------
 
     // LẤY DANH SÁCH + PHÂN TRANG + LỌC THEO THƯ MỤC
     @GetMapping("/blogs")
@@ -43,12 +49,10 @@ public class AdminController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
 
-    	// Tạo đối tượng Pageable từ Spring Data
         Pageable pageable = PageRequest.of(page, size, Sort.by("id").descending());
         Page<Blog> blogPage;
 
         if (folder != null && !folder.isEmpty()) {
-            // Cần thêm method này vào BlogRepository
             blogPage = blogRepository.findByContentPathAndDeletedFalse(folder, pageable);
         } else {
             blogPage = blogRepository.findByDeletedFalse(pageable);
@@ -56,6 +60,33 @@ public class AdminController {
 
         return ResponseEntity.ok(blogPage);
     }
+
+    // Tìm kiếm blog
+    @GetMapping("/blogs/search")
+    public ResponseEntity<Page<Blog>> searchBlogs(
+            @RequestParam(required = false) Long id,
+            @RequestParam(required = false) String title,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
+            @RequestParam(required = false) String contentPath,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by("id").descending());
+        Page<Blog> results = blogService.searchBlogs(id, title, fromDate, toDate, contentPath, pageable);
+        return ResponseEntity.ok(results);
+    }
+
+    @GetMapping("/blogs/{id}")
+    public ResponseEntity<Blog> getBlogById(@PathVariable Long id) {
+        return blogService.getBlogByIdForAdmin(id)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    // ---------------------------------------------------------------
+    // Writes
+    // ---------------------------------------------------------------
 
     // TẠO MỚI
     @PostMapping("/blogs")
@@ -79,18 +110,11 @@ public class AdminController {
             Blog updated = blogService.updateBlog(blog, content);
             return ResponseEntity.ok(updated);
         } catch (IOException e) {
-        	e.printStackTrace();
+            e.printStackTrace();
             return ResponseEntity.internalServerError().body("Lỗi cập nhật: " + e.getMessage());
         } catch (RuntimeException e) {
             return ResponseEntity.status(404).body(e.getMessage());
         }
-    }
-
-    // XOÁ (Xoá mềm)
-    @DeleteMapping("/blogs/{id}")
-    public ResponseEntity<?> deleteBlog(@PathVariable Long id) {
-        blogService.deleteBlog(id);
-        return ResponseEntity.ok().build();
     }
 
     @PatchMapping("/blogs/{id}/publish")
@@ -105,26 +129,10 @@ public class AdminController {
         }).orElse(ResponseEntity.notFound().build());
     }
 
-    @GetMapping("/blogs/{id}")
-    public ResponseEntity<Blog> getBlogById(@PathVariable Long id) {
-        return blogService.getBlogByIdForAdmin(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
-    }
-
-    //Tìm kiếm blog
-    @GetMapping("/blogs/search")
-    public ResponseEntity<Page<Blog>> searchBlogs(
-            @RequestParam(required = false) Long id,
-            @RequestParam(required = false) String title,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
-            @RequestParam(required = false) String contentPath,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
-
-        Pageable pageable = PageRequest.of(page, size, Sort.by("id").descending());
-        Page<Blog> results = blogService.searchBlogs(id, title, fromDate, toDate, contentPath, pageable);
-        return ResponseEntity.ok(results);
+    // XOÁ (Xoá mềm)
+    @DeleteMapping("/blogs/{id}")
+    public ResponseEntity<?> deleteBlog(@PathVariable Long id) {
+        blogService.deleteBlog(id);
+        return ResponseEntity.ok().build();
     }
 }

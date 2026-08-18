@@ -35,7 +35,11 @@ function renderCollectionModule() {
 async function loadCollections() {
     try {
         const response = await fetch(joinUrl(API_BASE_URL, '/api/admin/collections'));
-        if (!response.ok) throw new Error('Failed to load collections');
+        if (!response.ok) {
+            await handleApiError(response);
+            document.getElementById('collection-table-body').innerHTML = '<tr><td colspan="5">Không thể tải bộ sưu tập</td></tr>';
+            return;
+        }
         const collections = await response.json();
         const tbody = document.getElementById('collection-table-body');
         if (!tbody) return;
@@ -96,17 +100,17 @@ async function openCollectionModal(collectionId = null) {
             const response = collectionId
                 ? await fetch(joinUrl(API_BASE_URL, `/api/admin/collections/${collectionId}`), {
                     method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: csrfHeaders({ 'Content-Type': 'application/json' }),
                     body: JSON.stringify(payload)
                 })
                 : await fetch(joinUrl(API_BASE_URL, '/api/admin/collections'), {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: csrfHeaders({ 'Content-Type': 'application/json' }),
                     body: JSON.stringify(payload)
                 });
 
             if (!response.ok) {
-                alert('Không thể lưu bộ sưu tập');
+                await handleApiError(response);
                 return false;
             }
 
@@ -120,15 +124,24 @@ async function openCollectionModal(collectionId = null) {
 
 async function fetchCollectionById(collectionId) {
     const response = await fetch(joinUrl(API_BASE_URL, `/api/admin/collections/${collectionId}`));
-    return response.ok ? response.json() : null;
+    if (!response.ok) {
+        await handleApiError(response);
+        return null;
+    }
+    return response.json();
 }
 
 async function deleteCollection(id) {
     if (!confirm('Xóa bộ sưu tập này?')) return;
-    const response = await fetch(joinUrl(API_BASE_URL, `/api/admin/collections/${id}`), { method: 'DELETE' });
+    const response = await fetch(joinUrl(API_BASE_URL, `/api/admin/collections/${id}`), {
+        method: 'DELETE',
+        headers: csrfHeaders()
+    });
     if (response.ok) {
         loadCollections();
+        return;
     }
+    await handleApiError(response);
 }
 
 registerModule('collections', renderCollectionModule);

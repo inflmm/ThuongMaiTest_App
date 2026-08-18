@@ -84,7 +84,7 @@ async function addToCartFromHomepage(product, quantity) {
         try {
             const response = await fetch(joinUrl(API_BASE_URL, '/api/cart/add'), {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: csrfHeaders({ 'Content-Type': 'application/json' }),
                 body: JSON.stringify({ productId: product.id, quantity: quantity })
             });
             if (response.ok) {

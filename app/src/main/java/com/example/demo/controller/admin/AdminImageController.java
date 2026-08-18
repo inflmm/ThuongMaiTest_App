@@ -1,10 +1,9 @@
-package com.example.demo.controller;
+package com.example.demo.controller.admin;
 
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -15,13 +14,21 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.example.demo.service.ImageUploadService;
 
+// Content management — shared between ADMIN and EMPLOYEE.
 @RestController
 @RequestMapping("/api/admin/images")
 public class AdminImageController {
 
-    @Autowired
-    private ImageUploadService imageUploadService; // Service xử lý ảnh sản phẩm (đã làm ở bước trước)
+    private final ImageUploadService imageUploadService;
 
+    public AdminImageController(ImageUploadService imageUploadService) {
+        this.imageUploadService = imageUploadService;
+    }
+
+    // ---------------------------------------------------------------
+    // Writes (this controller has no reads — listing/browsing uploaded
+    // images lives in AdminFolderController)
+    // ---------------------------------------------------------------
 
     /**
      * LUỒNG 1: Upload ảnh sản phẩm - Có băm size, đổi tên theo quy tắc, chia 3 thư mục con
@@ -43,10 +50,9 @@ public class AdminImageController {
             List<String> baseNames = imageUploadService.uploadAndProcessImages(files, selectedFolder, format, quality, resizeMode, variant, customWidth, customHeight, namingMode, prefix, suffixStyle);
 
             return ResponseEntity.ok(Map.of(
-                "success", true,
-                "message", "Upload và xử lý ảnh thành công!",
-                "data", baseNames
-            ));
+                    "success", true,
+                    "message", "Upload và xử lý ảnh thành công!",
+                    "data", baseNames));
         } catch (IllegalArgumentException e) {
             // Bắt lỗi kiểm tra ràng buộc (như trống slug sản phẩm)
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
@@ -67,10 +73,9 @@ public class AdminImageController {
         try {
             List<String> fileNames = imageUploadService.uploadRawImages(files, selectedFolder);
             return ResponseEntity.ok(Map.of(
-                "success", true,
-                "message", "Upload ảnh gốc thành công",
-                "data", fileNames
-            ));
+                    "success", true,
+                    "message", "Upload ảnh gốc thành công",
+                    "data", fileNames));
         } catch (IOException e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("success", false, "message", "Lỗi ghi file hệ thống: " + e.getMessage()));

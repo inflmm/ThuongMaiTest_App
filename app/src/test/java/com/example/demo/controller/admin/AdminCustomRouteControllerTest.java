@@ -1,4 +1,4 @@
-package com.example.demo.controller;
+package com.example.demo.controller.admin;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
@@ -32,7 +32,7 @@ class AdminCustomRouteControllerTest {
 
     @BeforeEach
     void setUp() {
-        AdminCustomRouteController controller = new AdminCustomRouteController();
+        AdminCustomRouteController controller = new AdminCustomRouteController(customRouteService);
         ReflectionTestUtils.setField(controller, "customRouteService", customRouteService);
         mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
     }

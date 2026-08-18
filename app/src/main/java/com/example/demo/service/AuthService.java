@@ -4,7 +4,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.UUID;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,11 +15,14 @@ import com.example.demo.repository.UserRepository;
 
 @Service
 public class AuthService {
-    @Autowired
-    private UserRepository userRepository;
 
-    @Autowired
-    private PasswordEncoder passwordEncoder; // Nếu bạn có dùng mã hóa mật khẩu
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
+
+    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+        this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
+    }
 
     public String generateUniqueUserId() {
         String newId;
@@ -58,5 +61,27 @@ public class AuthService {
 
         // 6. Lưu vào Database
         return userRepository.save(user);
+    }
+
+    /**
+     * Self-service password change — used by both the regular-user endpoint
+     * (AuthController) and the employee endpoint (AdminAccountController).
+     * username is always resolved from the authenticated JWT principal by
+     * the calling controller, never trusted from a request body.
+     */
+    @Transactional
+    public void changePassword(String username, String currentPassword, String newPassword) {
+        User user = userRepository.findByUserId(username)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy tài khoản: " + username));
+
+        if (!passwordEncoder.matches(currentPassword, user.getPassword())) {
+            throw new BadCredentialsException("Mật khẩu hiện tại không đúng");
+        }
+        if (newPassword == null || newPassword.length() < 8) {
+            throw new IllegalArgumentException("Mật khẩu mới phải có ít nhất 8 ký tự");
+        }
+
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
     }
 }

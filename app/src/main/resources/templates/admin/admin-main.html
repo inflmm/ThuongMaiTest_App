@@ -71,7 +71,9 @@
         window.ADMIN_CRON_SECRET = /*[[${@environment.getProperty('app.cron.secret-token', '')}]]*/ '';
     </script>
     <script th:src="@{/assets/js/admin/admin-core.js}"></script>
+    <script th:src="@{/assets/js/admin/pages/admin-folder.js}"></script>
     <script th:src="@{/assets/js/admin/pages/admin-blog.js}"></script>
+    <script th:src="@{/assets/js/admin/pages/admin-image.js}"></script>
     <script th:src="@{/assets/js/admin/pages/admin-categories.js}"></script>
     <script th:src="@{/assets/js/admin/pages/admin-products.js}"></script>
     <script th:src="@{/assets/js/admin/pages/admin-collections.js}"></script>

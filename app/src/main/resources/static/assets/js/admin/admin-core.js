@@ -7,6 +7,26 @@ function joinUrl(base, path) {
     if (!path) return base;
     return base.replace(/\/$/, '') + '/' + path.replace(/^\//, '');
 }
+
+// --- CSRF (added for the JWT/cookie-auth migration) ---
+// admin-core.js declares its own API_BASE_URL/joinUrl rather than reusing
+// common.js, so this admin bundle doesn't have access to the CSRF helpers
+// added there — duplicated here for the same reason. Every state-changing
+// request (POST/PUT/DELETE) EXCEPT /api/auth/** needs this header, or it
+// gets rejected with 403.
+function getCookie(name) {
+    const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+    return match ? decodeURIComponent(match[2]) : null;
+}
+
+function csrfHeaders(extraHeaders) {
+    const token = getCookie('XSRF-TOKEN');
+    const headers = extraHeaders ? { ...extraHeaders } : {};
+    if (token) {
+        headers['X-XSRF-TOKEN'] = token;
+    }
+    return headers;
+}
 // 1. Khai báo danh sách các hàm render cho từng module
 const ModuleRegistry = {
     'blogs': () => {
@@ -250,14 +270,15 @@ async function handleAdminLogin() {
     const password = document.getElementById('admin-pass').value;
 
     try {
+        // Same fix as common.js: login now goes to a plain JSON endpoint
+        // (AuthController.login), not Spring Security's old formLogin —
+        // form-urlencoded no longer works. /api/auth/** is CSRF-exempt, so
+        // no header needed here.
         const response = await fetch(joinUrl(API_BASE_URL, '/api/auth/login'), {
             method: 'POST',
             credentials: 'same-origin',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: new URLSearchParams({
-                'username': username,
-                'password': password
-            })
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: username, password: password })
         });
 
         const data = await response.json();
@@ -267,7 +288,11 @@ async function handleAdminLogin() {
             const userRole = data.role; // Cần đảm bảo API login trả về role
             console.log(userRole);
 
-            if (userRole === 'ROLE_ADMIN') {
+            // Both ADMIN and EMPLOYEE can reach the admin panel (see
+            // SecurityConfig's hasAnyRole("ADMIN", "EMPLOYEE") on /admin/**) —
+            // gating on ROLE_ADMIN alone here would lock EMPLOYEE accounts out
+            // even though the backend permits them.
+            if (userRole === 'ROLE_ADMIN' || userRole === 'ROLE_EMPLOYEE') {
                 window.location.href = '/admin/main/dashboard';
             } else {
                 alert('Tài khoản của bạn không có quyền truy cập vùng Quản trị.');
@@ -307,6 +332,52 @@ async function renderBlogModule() { }
 // Hàm cập nhật đối tượng cho ModuleRegistry
 function registerModule(name, renderFn) {
     ModuleRegistry[name] = renderFn;
+}
+
+// --- Centralized API error display ---
+// Call this from any admin fetch's failure path: `if (!response.ok) { await
+// handleApiError(response); return; }`. Prefers the server's own message
+// (AdminController/Admin*Controller consistently return {"message": "..."})
+// and falls back to a generic per-status message when the body isn't JSON
+// or has no message field.
+const API_ERROR_MESSAGES = {
+    400: 'Yêu cầu không hợp lệ. Vui lòng kiểm tra lại dữ liệu.',
+    401: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
+    403: 'Bạn không có quyền thực hiện thao tác này.',
+    404: 'Không tìm thấy dữ liệu yêu cầu.',
+    409: 'Dữ liệu đã bị thay đổi bởi người khác, vui lòng tải lại trang.',
+    500: 'Lỗi hệ thống. Vui lòng thử lại sau.'
+};
+
+async function handleApiError(response) {
+    const status = response.status;
+    let serverMessage = '';
+    try {
+        // .clone() so the original response body is still readable by the
+        // caller afterward, if it wants to inspect it further.
+        const data = await response.clone().json();
+        serverMessage = data.message || '';
+    } catch (e) {
+        // Body wasn't JSON (or was empty) — fall back to the generic message below.
+        serverMessage = response.body ? await response.text() : '';
+    }
+
+    const message = serverMessage;
+
+    AdminApp.showModal({
+        id: 'api-error-modal',
+        title: 'Lỗi',
+        bodyHTML: `<div class="text-center p-4 text-danger">Lỗi: ${status} - ${API_ERROR_MESSAGES[status]}</div>
+                   <div class="text-center p-4 text-danger">${message}</div>`,
+        confirmText: 'Đóng'
+    });
+
+    // Session expired / not actually authenticated — the modal explains why,
+    // then bounce back to login rather than leaving the user stuck on a page
+    // full of actions that will all keep failing the same way.
+    if (status === 401) {
+        setTimeout(() => { window.location.href = '/admin/login'; }, 1500);
+    }
 }
 
 // Khởi tạo app

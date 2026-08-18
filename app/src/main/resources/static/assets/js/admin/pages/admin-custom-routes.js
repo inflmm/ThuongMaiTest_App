@@ -36,7 +36,11 @@ function renderCustomRouteModule() {
 async function loadCustomRoutes() {
     try {
         const response = await fetch(joinUrl(API_BASE_URL, '/api/admin/custom-routes'));
-        if (!response.ok) throw new Error('Failed to load custom routes');
+        if (!response.ok) {
+            await handleApiError(response);
+            document.getElementById('custom-route-table-body').innerHTML = '<tr><td colspan="6">Không thể tải đường dẫn</td></tr>';
+            return;
+        }
         const routes = await response.json();
         const tbody = document.getElementById('custom-route-table-body');
         if (!tbody) return;
@@ -104,17 +108,17 @@ async function openCustomRouteModal(routeId = null) {
             const response = routeId
                 ? await fetch(joinUrl(API_BASE_URL, `/api/admin/custom-routes/${routeId}`), {
                     method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: csrfHeaders({ 'Content-Type': 'application/json' }),
                     body: JSON.stringify(payload)
                 })
                 : await fetch(joinUrl(API_BASE_URL, '/api/admin/custom-routes'), {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: csrfHeaders({ 'Content-Type': 'application/json' }),
                     body: JSON.stringify(payload)
                 });
 
             if (!response.ok) {
-                alert('Không thể lưu đường dẫn');
+                await handleApiError(response);
                 return false;
             }
 
@@ -128,15 +132,24 @@ async function openCustomRouteModal(routeId = null) {
 
 async function fetchCustomRouteById(routeId) {
     const response = await fetch(joinUrl(API_BASE_URL, `/api/admin/custom-routes/${routeId}`));
-    return response.ok ? response.json() : null;
+    if (!response.ok) {
+        await handleApiError(response);
+        return null;
+    }
+    return response.json();
 }
 
 async function deleteCustomRoute(id) {
     if (!confirm('Xóa đường dẫn này?')) return;
-    const response = await fetch(joinUrl(API_BASE_URL, `/api/admin/custom-routes/${id}`), { method: 'DELETE' });
+    const response = await fetch(joinUrl(API_BASE_URL, `/api/admin/custom-routes/${id}`), {
+        method: 'DELETE',
+        headers: csrfHeaders()
+    });
     if (response.ok) {
         loadCustomRoutes();
+        return;
     }
+    await handleApiError(response);
 }
 
 registerModule('custom-routes', renderCustomRouteModule);

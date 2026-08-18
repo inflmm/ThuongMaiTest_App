@@ -59,6 +59,20 @@ public class DataInitializer implements CommandLineRunner {
             System.out.println("Đã khởi tạo tài khoản Admin thành công.");
         }
 
+        // Tạo tài khoản Employee (user: user_guest, pass: 123456)
+        if (!userRepository.existsByUsername("user_guest")) {
+            UserRegistrationDTO employeeDto = new UserRegistrationDTO();
+            employeeDto.setUsername("user_guest");
+            employeeDto.setPassword("123456");
+            employeeDto.setEmail("user_guest@example.com");
+            employeeDto.setFullName("Employee User");
+
+            User employee = authService.registerNewUser(employeeDto); // Gọi service để mã hóa pass
+            employee.setRole("ROLE_EMPLOYEE"); // Cập nhật quyền Employee
+            userRepository.save(employee);
+            System.out.println("Đã khởi tạo tài khoản Employee thành công.");
+        }
+
         // Tạo tài khoản User thường (user: 0123456, pass: 0123456)
         if (!userRepository.existsByUsername("0123456")) {
             UserRegistrationDTO userDto = new UserRegistrationDTO();

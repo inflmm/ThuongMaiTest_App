@@ -37,7 +37,11 @@ function renderProductModule() {
 async function loadProducts() {
     try {
         const response = await fetch(joinUrl(API_BASE_URL, '/api/products/admin'));
-        if (!response.ok) throw new Error('Failed to load products');
+        if (!response.ok) {
+            await handleApiError(response);
+            document.getElementById('product-table-body').innerHTML = '<tr><td colspan="7">Không thể tải sản phẩm</td></tr>';
+            return;
+        }
         const products = await response.json();
         const tbody = document.getElementById('product-table-body');
         if (!tbody) return;
@@ -156,12 +160,12 @@ async function openProductModal(productId = null) {
 
             const response = await fetch(joinUrl(API_BASE_URL, '/api/products/admin'), {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: csrfHeaders({ 'Content-Type': 'application/json' }),
                 body: JSON.stringify(payload)
             });
 
             if (!response.ok) {
-                alert('Không thể lưu sản phẩm');
+                await handleApiError(response);
                 return false;
             }
 
@@ -180,12 +184,19 @@ async function openProductModal(productId = null) {
 
 async function fetchProductById(productId) {
     const response = await fetch(joinUrl(API_BASE_URL, `/api/products/admin/${productId}`));
-    return response.ok ? response.json() : null;
+    if (!response.ok) {
+        await handleApiError(response);
+        return null;
+    }
+    return response.json();
 }
 
 async function loadCategoryOptions() {
     const response = await fetch(joinUrl(API_BASE_URL, '/api/admin/categories/tree'));
-    if (!response.ok) return '<option value="">— Chọn danh mục —</option>';
+    if (!response.ok) {
+        await handleApiError(response);
+        return '<option value="">— Chọn danh mục —</option>';
+    }
 
     const categories = await response.json();
     const flattened = [];
@@ -202,10 +213,15 @@ async function loadCategoryOptions() {
 
 async function deleteProduct(id) {
     if (!confirm('Xóa sản phẩm này?')) return;
-    const response = await fetch(joinUrl(API_BASE_URL, `/api/products/admin/${id}`), { method: 'DELETE' });
+    const response = await fetch(joinUrl(API_BASE_URL, `/api/products/admin/${id}`), {
+        method: 'DELETE',
+        headers: csrfHeaders()
+    });
     if (response.ok) {
         loadProducts();
+        return;
     }
+    await handleApiError(response);
 }
 
 function escapeHtml(value) {

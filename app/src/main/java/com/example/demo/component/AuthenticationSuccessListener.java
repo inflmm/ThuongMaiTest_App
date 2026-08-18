@@ -62,12 +62,10 @@ public class AuthenticationSuccessListener {
         String cronHeader = request.getHeader("X-Cron-Secret");
         boolean isCronPing = cronHeader != null && cronSecretToken.equals(cronHeader);
 
-        String username = (String) session.getAttribute("username");
-        String userId = (String) session.getAttribute("userId");
         String sessionId = session.getId();
         String ipAddress = SecurityUtils.getClientIpAddress(request);
         String userAgent = request.getHeader("User-Agent");
 
-        sessionLogService.createAuthenticatedSessionLog(sessionId, ipAddress, userAgent, isCronPing, userId, username);
+        sessionLogService.createAuthenticatedSessionLog(sessionId, ipAddress, userAgent, isCronPing, user.getUserId(), user.getUsername());
     }
 }

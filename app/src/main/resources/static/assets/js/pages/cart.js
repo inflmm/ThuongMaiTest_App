@@ -246,7 +246,7 @@ async function updateQuantity(newQuantity, productId, cartItemId) {
         try {
             const response = await fetch(`${API_BASE_URL}/api/cart/update/${cartItemId}`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers: csrfHeaders({ 'Content-Type': 'application/json' }),
                 body: JSON.stringify({ quantity: qty })
             });
 
@@ -300,7 +300,8 @@ async function removeCartItem(productId, cartItemId) {
             const CART_API_URL = joinUrl(API_BASE_URL, '/api/cart/remove');
 
             const response = await fetch(`${CART_API_URL}/${cartItemId}`, {
-                method: 'DELETE'
+                method: 'DELETE',
+                headers: csrfHeaders()
             });
 
             if (response.ok) {
@@ -332,9 +333,9 @@ async function handleCheckout() {
         const CHECKOUT_API_URL = joinUrl(API_BASE_URL, '/api/checkout');
         const response = await fetch(CHECKOUT_API_URL, {
             method: 'POST',
-            headers: {
+            headers: csrfHeaders({
                 'Content-Type': 'application/json'
-            },
+            }),
             // Giả định gửi một số thông tin thanh toán (có thể bỏ trống nếu Back-end không yêu cầu)
             body: JSON.stringify({ /* paymentMethod: "CASH_ON_DELIVERY" */ })
         });

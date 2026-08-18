@@ -40,7 +40,11 @@ function renderCategoryModule() {
 async function loadCategories() {
     try {
         const response = await fetch(joinUrl(API_BASE_URL, '/api/admin/categories/tree'));
-        if (!response.ok) throw new Error('Failed to load categories');
+        if (!response.ok) {
+            await handleApiError(response);
+            document.getElementById('category-tree-view').innerHTML = '<div>Không thể tải danh mục</div>';
+            return;
+        }
         const categories = await response.json();
         const treeHost = document.getElementById('category-tree-view');
         if (!treeHost) return;
@@ -66,19 +70,12 @@ async function loadCategories() {
 
 async function recalculateCategoryCounts() {
     try {
-        const response = await fetch(joinUrl(API_BASE_URL, '/api/admin/categories/recalculate-counts'), { method: 'POST' });
+        const response = await fetch(joinUrl(API_BASE_URL, '/api/admin/categories/recalculate-counts'), {
+            method: 'POST',
+            headers: csrfHeaders()
+        });
         if (!response.ok) {
-            let errorMessage = 'Không thể tính lại số lượng danh mục';
-            try {
-                const payloadError = await response.json();
-                errorMessage = payloadError.message || errorMessage;
-            } catch (error) {
-                const fallbackText = await response.text();
-                if (fallbackText) {
-                    errorMessage = fallbackText;
-                }
-            }
-            showCategoryMessage(errorMessage, 'error');
+            await handleApiError(response);
             return;
         }
 
@@ -203,27 +200,17 @@ async function openCreateCategoryModal(categoryId = null) {
             const response = categoryId
                 ? await fetch(joinUrl(API_BASE_URL, `/api/admin/categories/${categoryId}`), {
                     method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: csrfHeaders({ 'Content-Type': 'application/json' }),
                     body: JSON.stringify(payload)
                 })
                 : await fetch(joinUrl(API_BASE_URL, '/api/admin/categories'), {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: csrfHeaders({ 'Content-Type': 'application/json' }),
                     body: JSON.stringify(payload)
                 });
 
             if (!response.ok) {
-                let errorMessage = 'Không thể lưu danh mục';
-                try {
-                    const payloadError = await response.json();
-                    errorMessage = payloadError.message || errorMessage;
-                } catch (error) {
-                    const fallbackText = await response.text();
-                    if (fallbackText) {
-                        errorMessage = fallbackText;
-                    }
-                }
-                showCategoryMessage(errorMessage, 'error');
+                await handleApiError(response);
                 return false;
             }
 
@@ -239,7 +226,10 @@ async function openCreateCategoryModal(categoryId = null) {
 
 async function fetchCategoryById(categoryId) {
     const response = await fetch(joinUrl(API_BASE_URL, `/api/admin/categories/tree`));
-    if (!response.ok) return null;
+    if (!response.ok) {
+        await handleApiError(response);
+        return null;
+    }
 
     const categories = await response.json();
     const flatten = [];
@@ -257,7 +247,10 @@ async function populateParentCategoryOptions(categoryId = null, selectedParentId
     if (!select) return;
 
     const response = await fetch(joinUrl(API_BASE_URL, '/api/admin/categories/tree'));
-    if (!response.ok) return;
+    if (!response.ok) {
+        await handleApiError(response);
+        return;
+    }
     const categories = await response.json();
     const flatten = [];
     const walk = (items, parentChain = []) => items.forEach(item => {
@@ -277,24 +270,17 @@ async function populateParentCategoryOptions(categoryId = null, selectedParentId
 
 async function deleteCategory(categoryId) {
     if (!confirm('Xóa danh mục này?')) return;
-    const response = await fetch(joinUrl(API_BASE_URL, `/api/admin/categories/${categoryId}`), { method: 'DELETE' });
+    const response = await fetch(joinUrl(API_BASE_URL, `/api/admin/categories/${categoryId}`), {
+        method: 'DELETE',
+        headers: csrfHeaders()
+    });
     if (response.ok) {
         showCategoryMessage('Đã xóa danh mục', 'success');
         loadCategories();
         return;
     }
 
-    let errorMessage = 'Không thể xóa danh mục';
-    try {
-        const payloadError = await response.json();
-        errorMessage = payloadError.message || errorMessage;
-    } catch (error) {
-        const fallbackText = await response.text();
-        if (fallbackText) {
-            errorMessage = fallbackText;
-        }
-    }
-    showCategoryMessage(errorMessage, 'error');
+    await handleApiError(response);
 }
 
 function escapeHtml(value) {

@@ -1,9 +1,9 @@
-package com.example.demo.controller;
+package com.example.demo.controller.admin;
 
 import java.util.List;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -16,12 +16,22 @@ import org.springframework.web.bind.annotation.RestController;
 import com.example.demo.model.CustomRoute;
 import com.example.demo.service.CustomRouteService;
 
+// Reads shared between ADMIN and EMPLOYEE. Writes are ADMIN-only: a bad
+// custom route affects site-wide URL structure, not just one piece of
+// content — a meaningfully different risk tier than editing a blog post.
 @RestController
 @RequestMapping("/api/admin/custom-routes")
 public class AdminCustomRouteController {
 
-    @Autowired
-    private CustomRouteService customRouteService;
+    private final CustomRouteService customRouteService;
+
+    public AdminCustomRouteController(CustomRouteService customRouteService) {
+        this.customRouteService = customRouteService;
+    }
+
+    // ---------------------------------------------------------------
+    // Reads
+    // ---------------------------------------------------------------
 
     @GetMapping
     public ResponseEntity<List<CustomRoute>> listRoutes() {
@@ -35,11 +45,17 @@ public class AdminCustomRouteController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    // ---------------------------------------------------------------
+    // Writes (ADMIN-only — see class comment)
+    // ---------------------------------------------------------------
+
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     public ResponseEntity<CustomRoute> createRoute(@RequestBody CustomRoute route) {
         return ResponseEntity.ok(customRouteService.create(route));
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}")
     public ResponseEntity<CustomRoute> updateRoute(@PathVariable Long id, @RequestBody CustomRoute route) {
         return customRouteService.getById(id)
@@ -50,6 +66,7 @@ public class AdminCustomRouteController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteRoute(@PathVariable Long id) {
         customRouteService.delete(id);

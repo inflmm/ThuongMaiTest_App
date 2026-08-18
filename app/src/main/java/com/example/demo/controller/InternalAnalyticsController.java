@@ -37,6 +37,9 @@ public class InternalAnalyticsController {
 
     @PostMapping("/sync")
     public ResponseEntity<String> syncData (@RequestHeader(value = "X-Cron-Secret", required = false) String incomingToken) {
+        if (!analyticsEnabled){
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Forbidden: Invalid or missing secret token");
+        }
         if (isUnauthorized(incomingToken)) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized: Invalid or missing secret token");
         }
@@ -49,11 +52,12 @@ public class InternalAnalyticsController {
     @PostMapping("/memory-snapshot")
     public ResponseEntity<String> triggerMemorySnapshot(@RequestHeader(value = "X-Cron-Secret", required = false) String incomingToken) {
         if (isUnauthorized(incomingToken)) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized: Invalid or missing secret token");
+            // Trả về 403 Forbidden nếu token không hợp lệ
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Forbidden: Invalid or missing secret token");
         }
 
         if (!analyticsEnabled){
-            return ResponseEntity.ok("Analytic disabled");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Analytic disabled");
         }
 
         memoryMonitorService.recordSnapshot(); // Gọi trực tiếp hàm ghi log RAM

@@ -159,15 +159,15 @@ async function syncTrafficData() {
     try {
         const response = await fetch(joinUrl(API_BASE_URL, '/api/internal/analytics/sync'), {
             method: 'POST',
-            headers: {
+            headers: csrfHeaders({
                 'Content-Type': 'application/json',
                 'X-Cron-Secret': window.ADMIN_CRON_SECRET || ''
-            }
+            })
         });
 
         if (!response.ok) {
-            const text = await response.text();
-            throw new Error(text || 'Sync failed');
+            await handleApiError(response);
+            return;
         }
 
         await loadTrafficOverview();
@@ -211,8 +211,13 @@ async function loadTrafficOverview(options = {}) {
             fetch(dailyUrl)
         ]);
 
-        if (!overviewRes.ok || !dailyRes.ok) {
-            throw new Error('Không thể tải dữ liệu traffic');
+        if (!overviewRes.ok) {
+            await handleApiError(overviewRes);
+            return;
+        }
+        if (!dailyRes.ok) {
+            await handleApiError(dailyRes);
+            return;
         }
 
         const overview = await overviewRes.json();

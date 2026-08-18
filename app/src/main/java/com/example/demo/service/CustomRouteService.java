@@ -20,7 +20,7 @@ public class CustomRouteService {
     }
 
     public List<CustomRoute> getAllForAdmin() {
-        return customRouteRepository.findAll();
+        return customRouteRepository.findByDeletedFalse();
     }
 
     public Optional<CustomRoute> getById(Long id) {

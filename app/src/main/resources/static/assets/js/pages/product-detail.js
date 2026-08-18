@@ -658,9 +658,9 @@ addToCartBtn.addEventListener('click', async () => {
         try {
             const response = await fetch(CART_ADD_URL, {
                 method: 'POST',
-                headers: {
+                headers: csrfHeaders({
                     'Content-Type': 'application/json'
-                },
+                }),
                 body: JSON.stringify({
                     productId: currentProduct.id,
                     quantity: quantity

@@ -1,4 +1,4 @@
-package com.example.demo.controller;
+package com.example.demo.controller.admin;
 
 import java.util.List;
 import java.util.Map;
@@ -17,6 +17,7 @@ import com.example.demo.dto.CategoryAdminDto;
 import com.example.demo.model.Category;
 import com.example.demo.service.CategoryService;
 
+// Catalog/content management — shared between ADMIN and EMPLOYEE.
 @RestController
 @RequestMapping("/api/admin/categories")
 public class AdminCategoryController {
@@ -26,6 +27,10 @@ public class AdminCategoryController {
     public AdminCategoryController(CategoryService categoryService) {
         this.categoryService = categoryService;
     }
+
+    // ---------------------------------------------------------------
+    // Reads
+    // ---------------------------------------------------------------
 
     @GetMapping
     public List<Category> getAllCategories() {
@@ -41,6 +46,10 @@ public class AdminCategoryController {
     public List<Category> getChildren(@PathVariable Long parentId) {
         return categoryService.getChildren(parentId);
     }
+
+    // ---------------------------------------------------------------
+    // Writes
+    // ---------------------------------------------------------------
 
     @PostMapping
     public ResponseEntity<?> createCategory(@RequestBody CategoryPayload payload) {
@@ -62,6 +71,12 @@ public class AdminCategoryController {
         }
     }
 
+    @PostMapping("/recalculate-counts")
+    public ResponseEntity<?> recalculateCategoryCounts() {
+        categoryService.recalculateAllCounts();
+        return ResponseEntity.ok(Map.of("message", "Đã tính lại số lượng danh mục"));
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteCategory(@PathVariable Long id) {
         try {
@@ -70,12 +85,6 @@ public class AdminCategoryController {
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
         }
-    }
-
-    @PostMapping("/recalculate-counts")
-    public ResponseEntity<?> recalculateCategoryCounts() {
-        categoryService.recalculateAllCounts();
-        return ResponseEntity.ok(Map.of("message", "Đã tính lại số lượng danh mục"));
     }
 
     public record CategoryPayload(String name, Long parentId, Integer displayOrder, String iconUrl) {

@@ -1,5 +1,9 @@
 package com.example.demo.component;
 
+import java.time.Clock;
+import java.time.Duration;
+import java.time.LocalDateTime;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
@@ -17,7 +21,7 @@ import jakarta.servlet.http.HttpSession;
 public class VisitorInterceptor implements HandlerInterceptor{
     
     private static final String COOKIE_NAME = "visited_session";
-    private static final int COOKIE_MAX_AGE = 60 * 60; // 1 hour in seconds
+    private final Clock clock;
 
     @Value("${app.analytics.enabled:true}")
     private boolean analyticsEnabled;
@@ -28,9 +32,10 @@ public class VisitorInterceptor implements HandlerInterceptor{
     private final AnalyticsBufferService analyticsBufferService;
     private final SessionLogService sessionLogService;
 
-    public VisitorInterceptor(AnalyticsBufferService analyticsBufferService, SessionLogService sessionLogService) {
+    public VisitorInterceptor(AnalyticsBufferService analyticsBufferService, SessionLogService sessionLogService, Clock clock) {
         this.analyticsBufferService = analyticsBufferService;
         this.sessionLogService = sessionLogService;
+        this.clock = clock;
     }
 
     @Override
@@ -67,7 +72,7 @@ public class VisitorInterceptor implements HandlerInterceptor{
         // If the session cookie is not present and it's not a cron job request, set the cookie and increment unique sessions
         if (!hasSessionCookie) {
             Cookie sessionCookie = new Cookie(COOKIE_NAME, "true");
-            sessionCookie.setMaxAge(COOKIE_MAX_AGE);
+            sessionCookie.setMaxAge(secondsUntilEndOfDay());
             sessionCookie.setPath("/");
             sessionCookie.setHttpOnly(true);
             response.addCookie(sessionCookie);
@@ -97,5 +102,18 @@ public class VisitorInterceptor implements HandlerInterceptor{
         //System.out.println("Ghi nhận 1 Lượt Traffic vào URI:" + uri);
 
         return true;
+    }
+
+    /**
+     * Seconds remaining until midnight (server clock), so the cookie always
+     * expires at the calendar-day boundary — the same boundary DailyAnalytics
+     * buckets on — rather than a fixed 24h from whenever the visitor first
+     * showed up. This is recomputed per request rather than a constant, since
+        LocalDateTime now = LocalDateTime.now(clock);
+     */
+    private int secondsUntilEndOfDay() {
+        LocalDateTime now = LocalDateTime.now(clock);
+        LocalDateTime midnight = now.toLocalDate().plusDays(1).atStartOfDay();
+        return (int) Duration.between(now, midnight).getSeconds();
     }
 }

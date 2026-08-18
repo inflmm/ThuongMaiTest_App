@@ -21,6 +21,25 @@ function joinUrl(base, path) {
     return base.replace(/\/$/, '') + '/' + path.replace(/^\//, '');
 }
 
+// --- CSRF (added for the JWT/cookie-auth migration) ---
+// Spring Security writes the CSRF token into a readable (non-httpOnly)
+// XSRF-TOKEN cookie once CSRF protection is enabled. Every state-changing
+// request (POST/PUT/DELETE) EXCEPT /api/auth/** must echo that value back
+// as an X-XSRF-TOKEN header, or it will be rejected with 403.
+function getCookie(name) {
+    const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+    return match ? decodeURIComponent(match[2]) : null;
+}
+
+function csrfHeaders(extraHeaders) {
+    const token = getCookie('XSRF-TOKEN');
+    const headers = extraHeaders ? { ...extraHeaders } : {};
+    if (token) {
+        headers['X-XSRF-TOKEN'] = token;
+    }
+    return headers;
+}
+
 window.addEventListener('scroll', function () {
     let now = performance.now();
     if (now - lastCommonRun < commonFpsLimit) return;
@@ -137,15 +156,13 @@ async function handleAuth() {
         }
     } else {
         // LOGIC ĐĂNG NHẬP
-        const params = new URLSearchParams();
-        params.append('username', identifier);
-        params.append('password', password);
-
+        // Login now goes to a plain JSON endpoint (AuthController.login), not
+        // Spring Security's old formLogin — form-urlencoded no longer works.
         try {
             const response = await fetch('/api/auth/login', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: params
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: identifier, password: password })
             });
 
             if (response.ok) {
@@ -155,9 +172,10 @@ async function handleAuth() {
                 const guestCart = localStorage.getItem('guest_cart');
                 if (guestCart) {
                     // Gửi merge nhưng không dùng alert() để khách không biết
+                    // /api/cart/merge is NOT under /api/auth/**, so it still needs the CSRF header.
                     fetch('/api/cart/merge', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: csrfHeaders({ 'Content-Type': 'application/json' }),
                         body: guestCart
                     }).then(() => {
                         // Xoá giỏ hàng khi đăng nhập

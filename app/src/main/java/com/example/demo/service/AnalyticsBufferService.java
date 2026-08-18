@@ -9,6 +9,7 @@ import com.example.demo.repository.DailyAnalyticsRepository;
 
 import jakarta.transaction.Transactional;
 
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -34,6 +35,7 @@ public class AnalyticsBufferService {
     }
 
     @Transactional
+    @Scheduled(cron = "0 */6 0 * * *") // Every 6 hours
     public void flushToDatabase() {
         int currentTraffic = trafficDelta.getAndSet(0);
         int currentSessions = sessionDelta.getAndSet(0);
