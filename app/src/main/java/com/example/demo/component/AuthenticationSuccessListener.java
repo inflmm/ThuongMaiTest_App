@@ -15,6 +15,10 @@ import com.example.demo.utils.SecurityUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 
+/**
+ * Listener for successful authentication events.
+ * Obsolete because of stateless JWT authentication
+ */
 @Component
 public class AuthenticationSuccessListener {
     

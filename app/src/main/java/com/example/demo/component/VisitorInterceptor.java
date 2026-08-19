@@ -15,7 +15,6 @@ import com.example.demo.utils.SecurityUtils;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import jakarta.servlet.http.HttpSession;
 
 @Component
 public class VisitorInterceptor implements HandlerInterceptor{
@@ -84,10 +83,10 @@ public class VisitorInterceptor implements HandlerInterceptor{
             // runs (on a different thread, possibly after this method has already
             // returned), the request may already be reset for reuse, causing
             // IllegalStateException: The request object has been recycled...
-            HttpSession session = request.getSession();
-            String username = (String) session.getAttribute("username");
-            String userId = (String) session.getAttribute("userId");
-            String sessionId = session.getId();
+            String sessionId = null;
+            // Most of the time, username and userId will be null here, since this is a preHandle() call that happens before authentication. But if the user is already logged in (e.g. a cron job pinging an authenticated endpoint), we can still extract them from the request attributes.
+            String userName = (String) request.getAttribute("userName");
+            String userId = (String) request.getAttribute("userId");
             String ipAddress = SecurityUtils.getClientIpAddress(request);
             String userAgent = request.getHeader("User-Agent");
  
@@ -95,7 +94,7 @@ public class VisitorInterceptor implements HandlerInterceptor{
             // isCronPing is always false at this call site (real cron pings already
             // returned above) — kept as an explicit parameter so the service method
             // stays reusable from other call sites without guessing.
-            sessionLogService.recordSession(sessionId, ipAddress, userAgent, isCronPing, userId, username);
+            sessionLogService.recordSession(sessionId, ipAddress, userAgent, isCronPing, userId, userName);
 
         }
         analyticsBufferService.incrementTraffic();
@@ -109,7 +108,7 @@ public class VisitorInterceptor implements HandlerInterceptor{
      * expires at the calendar-day boundary — the same boundary DailyAnalytics
      * buckets on — rather than a fixed 24h from whenever the visitor first
      * showed up. This is recomputed per request rather than a constant, since
-        LocalDateTime now = LocalDateTime.now(clock);
+     * the server may be running across a midnight boundary.
      */
     private int secondsUntilEndOfDay() {
         LocalDateTime now = LocalDateTime.now(clock);
