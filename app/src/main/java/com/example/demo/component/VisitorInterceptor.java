@@ -3,6 +3,7 @@ package com.example.demo.component;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -39,20 +40,13 @@ public class VisitorInterceptor implements HandlerInterceptor{
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
-        
-        if (!analyticsEnabled) {
-            return true; // Skip analytics tracking if disabled
-        }
-
         String uri = request.getRequestURI();
-        if (uri.startsWith("/swagger-ui") || uri.startsWith("/v3/api-docs")) {
-            return true; // Allow access to Swagger UI and API docs without checking the cookie
-        }
-
         String cronHeader = request.getHeader("X-Cron-Secret");
         boolean isCronPing = cronHeader != null && cronSecretToken.equals(cronHeader);
-        if (isCronPing) {
-            return true;
+        // Skip analytics tracking if disabled or cron ping or if the request is for Swagger UI or API docs
+        // This allows the cron job to ping the endpoint without affecting analytics
+        if (!analyticsEnabled || isCronPing || uri.startsWith("/swagger-ui") || uri.startsWith("/v3/api-docs")) {
+            return true; 
         }
 
         boolean hasSessionCookie = false;
@@ -70,7 +64,13 @@ public class VisitorInterceptor implements HandlerInterceptor{
         
         // If the session cookie is not present and it's not a cron job request, set the cookie and increment unique sessions
         if (!hasSessionCookie) {
-            Cookie sessionCookie = new Cookie(COOKIE_NAME, "true");
+            // A real per-session UUID, not a static "true" flag — this becomes
+            // the sessionId stored on UserSessionLog below, so log rows can
+            // actually be correlated back to "the same anonymous visitor,
+            // same day" rather than sessionId being permanently null.
+            String sessionValue = UUID.randomUUID().toString();
+
+            Cookie sessionCookie = new Cookie(COOKIE_NAME, sessionValue);
             sessionCookie.setMaxAge(secondsUntilEndOfDay());
             sessionCookie.setPath("/");
             sessionCookie.setHttpOnly(true);
@@ -83,8 +83,9 @@ public class VisitorInterceptor implements HandlerInterceptor{
             // runs (on a different thread, possibly after this method has already
             // returned), the request may already be reset for reuse, causing
             // IllegalStateException: The request object has been recycled...
-            String sessionId = null;
-            // Most of the time, username and userId will be null here, since this is a preHandle() call that happens before authentication. But if the user is already logged in (e.g. a cron job pinging an authenticated endpoint), we can still extract them from the request attributes.
+            // Most of the time, userName/userId will be null here, since this is
+            // an anonymous first-visit-of-the-day event — these are only non-null
+            // when a logged-in user's token was already present on this request.
             String userName = (String) request.getAttribute("userName");
             String userId = (String) request.getAttribute("userId");
             String ipAddress = SecurityUtils.getClientIpAddress(request);
@@ -94,7 +95,7 @@ public class VisitorInterceptor implements HandlerInterceptor{
             // isCronPing is always false at this call site (real cron pings already
             // returned above) — kept as an explicit parameter so the service method
             // stays reusable from other call sites without guessing.
-            sessionLogService.recordSession(sessionId, ipAddress, userAgent, isCronPing, userId, userName);
+            sessionLogService.createAuthenticatedSessionLog(sessionValue, ipAddress, userAgent, false, userId, userName);
 
         }
         analyticsBufferService.incrementTraffic();
@@ -104,11 +105,10 @@ public class VisitorInterceptor implements HandlerInterceptor{
     }
 
     /**
-     * Seconds remaining until midnight (server clock), so the cookie always
-     * expires at the calendar-day boundary — the same boundary DailyAnalytics
-     * buckets on — rather than a fixed 24h from whenever the visitor first
-     * showed up. This is recomputed per request rather than a constant, since
-     * the server may be running across a midnight boundary.
+     * Seconds remaining until midnight, using the shared app Clock (see
+     * ClockConfig — Asia/Ho_Chi_Minh) so this always agrees with whatever
+     * timezone DailyAnalytics buckets on, rather than relying on the JVM's
+     * possibly-different default zone.
      */
     private int secondsUntilEndOfDay() {
         LocalDateTime now = LocalDateTime.now(clock);

@@ -8,7 +8,7 @@
 - OpenAPI/Swagger documentation polish
 - Optional: move admin controllers into a dedicated `controller.admin` package
 
-## [2026-08-18] Stateless auth migration (JWT + CSRF) and EMPLOYEE role
+## [2026-08-19] Stateless auth migration (JWT + CSRF) and EMPLOYEE role
 ### Added
 - Migrated login from Spring Security session-based `formLogin` to stateless
   JWT (httpOnly cookie), motivated by per-user session memory cost on a
@@ -44,6 +44,22 @@
 - Cookie flags, httpOnly enforcement, back-to-back-write regression test,
   role separation, logout cookie clearing, and multi-device session
   independence — see docs/deployment.md
+### Fixed (found during production verification)
+- `AuthService.changePassword` looked up users by the wrong column
+  (`username` instead of `userId`, the app's actual principal identifier) —
+  broke password change for both USER and EMPLOYEE self-service paths
+- Login-event analytics logging read `userName`/`userId` from request
+  attributes that don't exist yet on the login request itself (they're only
+  populated from an existing token, and login is what creates the token) —
+  now reads directly from the already-fetched `User` entity
+- `visited_session` cookie upgraded from a static `"true"` flag to a real
+  per-session UUID, also used as the session log's `sessionId` — gives
+  genuine same-day-visitor correlation instead of an always-null field
+### Confirmed stable over multiple days
+- ~3.75 days of continuous production uptime (see docs/deployment.md) show
+  the metaspace fix holding: usage plateaued in a stable band well under
+  the cap, no drift, no recurrence — the strongest evidence yet that
+  incident 2 (below) is genuinely resolved, not just quiet in the short term
 
 ## [2026-08-14] Resource tuning: two separate memory incidents
 ### Fixed

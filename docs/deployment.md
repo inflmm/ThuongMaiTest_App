@@ -99,8 +99,22 @@ operation, only +132 over the following hour) is exactly the "one-time
 warm-up, then plateau" shape.
 
 **Fix:** raised `MaxMetaspaceSize` to 128MB — generous enough for this
-stack's genuine steady-state need. Verified healthy afterward via the same
-logging: usage plateaued well under the new cap, no further incidents.
+stack's genuine steady-state need.
+
+**Verified over multiple days, not just the initial few hours:** a later
+~3.75-day continuous-uptime sample (Aug 15 17:26 – Aug 19 12:32) confirms the
+fix held — `metaspaceUsed` stayed in a stable 91–96MB band the entire window
+(well under the 128MB cap, no drift), and `unloadedClassCount` stayed flat
+(one step from 64→166 early on, then unchanged for the rest of the window) —
+no churn, no leak, no recurrence. This is the strongest evidence yet that
+the fix is correct long-term, not just in the short window it was first
+observed in.
+
+> Note: a handful of rows recorded during this window (`heapmaxmb: 5988`,
+> `metaspacemaxmb: -1`, i.e. unbounded) are from a local machine, not
+> Render's 512MB container — excluded from the analysis above. Worth adding
+> an environment tag to `MemoryUsageLog` at some point so local vs.
+> production rows don't have to be told apart by eyeballing the heap size.
 
 ---
 
@@ -134,6 +148,19 @@ writing and token rotation that were found and fixed during this migration).
 - Logout confirmed to clear the cookie and re-lock protected routes
 - Multiple concurrent logins (different browsers) confirmed independent —
   the actual payoff of going stateless
+- Identity resolution bug found and fixed: `AuthService.changePassword`
+  looked up users by the `username` column, but the app's principal is
+  `userId` (see `CustomUserDetailsService` — deliberate design, `userId` is
+  the stable identifier embedded everywhere downstream). Fixed to look up by
+  `userId` consistently.
+- Analytics logging bug found and fixed: login-event logging tried reading
+  `userName`/`userId` from request attributes that `JwtAuthenticationFilter`
+  only populates when a token is already present on the *incoming* request —
+  but the login request is the one creating that token, so nothing had been
+  set yet. Fixed to use the already-fetched `User` entity directly instead.
+- `visited_session` cookie value upgraded from a static `"true"` flag to a
+  real per-session UUID, now also used as `sessionId` on session-log rows —
+  gives genuine same-day-visitor correlation instead of an always-null field
 
 ## Environment Variables
 

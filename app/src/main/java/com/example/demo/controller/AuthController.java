@@ -1,6 +1,7 @@
 package com.example.demo.controller;
 
 import java.util.Map;
+import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseCookie;
@@ -15,6 +16,8 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 
 import com.example.demo.dto.ChangePasswordDTO;
@@ -107,19 +110,34 @@ public class AuthController {
 
         // --- GHI LOG ĐĂNG NHẬP THÀNH CÔNG TẠI ĐÂY ---
         if (analyticsEnabled) {
-            String userName = (String) request.getAttribute("userName");
-            String userId = (String) request.getAttribute("userId");
+            // NOT from request attributes — those are populated by
+            // JwtAuthenticationFilter reading an EXISTING token, but this is
+            // the request that creates the token in the first place, so
+            // there's nothing for the filter to have read yet. The values
+            // are already sitting right here from the `user` lookup above.
+            String userName = dto.username(); // or user.getUsername(), same thing
+            String userId = user.getUserId();
             String ipAddress = SecurityUtils.getClientIpAddress(request);
             String userAgent = request.getHeader("User-Agent");
             
-            String sessionId = null; 
+            String sessionValue = null;
+            Cookie[] cookies = request.getCookies();
+            if (cookies != null) {
+                for (Cookie temp : cookies) {
+                    if ("visited_session".equals(temp.getName())) {
+                        sessionValue = temp.getValue();
+                        break;
+                    }
+                }
+            }
+            
             
             String cronHeader = request.getHeader("X-Cron-Secret");
             boolean isCronPing = cronHeader != null && cronSecretToken.equals(cronHeader);
 
             // Gọi Async Log
             sessionLogService.createAuthenticatedSessionLog(
-                sessionId, ipAddress, userAgent, isCronPing, userId, userName
+                sessionValue, ipAddress, userAgent, isCronPing, userId, userName
             );
         }
 
